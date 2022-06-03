@@ -1,0 +1,34 @@
+name: "winrt-go build"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: init
+        run: |
+          docker build -f Dockerfile.build -t winrt-go .
+          docker run --rm -i -d --name winrt-go winrt-go
+      - name: prepare
+        run: docker exec -i winrt-go make prepare
+      - name: sanity-check
+        run: docker exec -i winrt-go make sanity-check
+      - name: build
+        run: docker exec -i winrt-go make build
+      - name: test
+        run: docker exec -i winrt-go make test
+      - name: release
+        if: github.ref == 'refs/heads/main'
+        run: docker exec -i winrt-go make release
+      - name: clean
+        run: |
+          docker exec -i winrt-go make clean
+          docker stop winrt-go

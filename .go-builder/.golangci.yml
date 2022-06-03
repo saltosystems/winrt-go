@@ -1,0 +1,56 @@
+linters:
+  enable:
+    # golangci-lint curated list of linters (as of 1.42.1)
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    # Our own extra sauce
+    # Temporarily disable this linter until underlying issues for the 1.18 support
+    # are fixed:
+    # * https://github.com/go-critic/go-critic/issues/1193
+    #- gocritic
+    - goimports
+    - revive
+    - exportloopref
+    - unparam
+    - ifshort
+    - gosec
+  disable-all: true
+
+issues:
+  exclude-use-default: false
+  exclude:
+    # Ignore err, ctx and ok variables shadowing, which are quite common and in principle, uncritical cases.
+    - 'declaration of "err|ctx|ok" shadows declaration at'
+
+linters-settings:
+  errcheck:
+    exclude: .go-builder/.errcheck.exclude
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - unnamedResult
+
+  govet:
+    check-shadowing: true
+
+  gosec:
+    excludes:
+      - G104
+
+run:
+  build-tags:
+    - integration
+    - unit
+    - e2e

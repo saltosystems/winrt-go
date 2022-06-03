@@ -1,0 +1,4 @@
+(github.com/saltosystems/x/log.Logger).Error
+(github.com/saltosystems/x/log.Logger).Info
+(github.com/saltosystems/x/log.Logger).Warn
+(github.com/saltosystems/x/log.Logger).Debug
