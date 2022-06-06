@@ -4,11 +4,7 @@
 package winrt
 
 import (
+	"github.com/go-ole/go-ole"
 	"syscall"
 	"unsafe"
-	"github.com/go-ole/go-ole"
 )
-
-
-
-
