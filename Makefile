@@ -22,3 +22,7 @@ release: $(release_targets)
 
 .PHONY: clean
 clean: $(clean_targets)
+
+.PHONY: gen-files
+gen-files:
+	go generate github.com/saltosystems/winrt-go/...

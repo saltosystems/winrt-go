@@ -20,6 +20,8 @@ func NewGenerateCommand(logger log.Logger) *subcommands.Command {
 	return subcommands.NewCommand(fs.Name(), fs, func() error {
 		if cfg.Debug {
 			logger = level.NewFilter(logger, level.AllowDebug())
+		} else {
+			logger = level.NewFilter(logger, level.AllowInfo())
 		}
 		return codegen.Generate(cfg, logger)
 	})
