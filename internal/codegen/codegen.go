@@ -3,6 +3,7 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,7 +125,15 @@ func (g *generator) generateClass(path, class string, i uint32) error {
 		return err
 	}
 	defer func() { _ = file.Close() }()
-	_, err = file.Write(buf.Bytes())
+
+	// format the output source code
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	// and write it to file
+	_, err = file.Write(formatted)
 	return err
 }
 
