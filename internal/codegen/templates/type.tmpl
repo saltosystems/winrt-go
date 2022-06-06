@@ -1,0 +1,14 @@
+type {{.Name}} struct {
+    {{range .EmbeddedStructs}}
+        {{.Package}}.{{.Name}}
+    {{end}}
+
+    {{range .Methods}}
+        {{- if .IsStatic}}
+            {{continue}}
+        {{else if eq .Name ".ctor"}}
+            {{continue}}
+        {{end -}}
+        {{methodName .}} uintptr
+    {{end}}
+}
