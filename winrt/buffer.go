@@ -8,3 +8,15 @@ import (
 	"syscall"
 	"unsafe"
 )
+
+type IBuffer struct {
+	ole.IInspectable
+}
+
+type IBufferVtbl struct {
+	ole.IInspectableVtbl
+
+	GetCapacity uintptr
+	GetLength   uintptr
+	SetLength   uintptr
+}
