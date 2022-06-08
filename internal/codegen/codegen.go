@@ -24,6 +24,10 @@ func (e *classNotFoundError) Error() string {
 }
 
 type generator struct {
+	class       string
+	skipFactory bool
+	skipStatics bool
+
 	logger log.Logger
 
 	winmdCtx *types.Context
@@ -36,13 +40,16 @@ func Generate(cfg *Config, logger log.Logger) error {
 	}
 
 	g := &generator{
-		logger: logger,
+		class:       cfg.Class,
+		skipFactory: cfg.SkipFactory,
+		skipStatics: cfg.SkipStatics,
+		logger:      logger,
 	}
-	return g.run(cfg)
+	return g.run()
 }
 
-func (g *generator) run(cfg *Config) error {
-	_ = level.Debug(g.logger).Log("msg", "starting code generation", "class", cfg.Class)
+func (g *generator) run() error {
+	_ = level.Debug(g.logger).Log("msg", "starting code generation", "class", g.class)
 
 	winmdFiles, err := winmd.AllFiles()
 	if err != nil {
@@ -57,7 +64,7 @@ func (g *generator) run(cfg *Config) error {
 		}
 		g.winmdCtx = winmdCtx
 
-		classIndex, err := g.findClass(cfg.Class)
+		classIndex, err := g.findClass(g.class)
 		if err != nil {
 			// class not found errors are ok
 			if _, ok := err.(*classNotFoundError); ok {
@@ -67,10 +74,10 @@ func (g *generator) run(cfg *Config) error {
 			return err
 		}
 
-		return g.generateClass(cfg.Class, classIndex)
+		return g.generateClass(g.class, classIndex)
 	}
 
-	return fmt.Errorf("class %s was not found", cfg.Class)
+	return fmt.Errorf("class %s was not found", g.class)
 
 }
 
@@ -185,32 +192,36 @@ func (g *generator) getGenData(runtimeClass types.TypeDef) (*genData, error) {
 	}
 	genTypes = append(genTypes, generatedInterface)
 
-	// the factory (may not exist)
-	classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + factoryTypeName(typeDefIntf))
-	if err == nil {
-		typeDefFactory, err := g.typeDefByIndex(classIndex)
-		if err != nil {
-			return nil, err
+	if !g.skipFactory {
+		// the factory (may not exist)
+		classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + factoryTypeName(typeDefIntf))
+		if err == nil {
+			typeDefFactory, err := g.typeDefByIndex(classIndex)
+			if err != nil {
+				return nil, err
+			}
+			gtFactory, err := g.getGenType(typeDefFactory, runtimeClass, true)
+			if err != nil {
+				return nil, err
+			}
+			genTypes = append(genTypes, gtFactory)
 		}
-		gtFactory, err := g.getGenType(typeDefFactory, runtimeClass, true)
-		if err != nil {
-			return nil, err
-		}
-		genTypes = append(genTypes, gtFactory)
 	}
 
-	// statics (may not exist)
-	classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + staticsTypeName(typeDefIntf))
-	if err == nil {
-		typeDefStatics, err := g.typeDefByIndex(classIndex)
-		if err != nil {
-			return nil, err
+	if !g.skipStatics {
+		// statics (may not exist)
+		classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + staticsTypeName(typeDefIntf))
+		if err == nil {
+			typeDefStatics, err := g.typeDefByIndex(classIndex)
+			if err != nil {
+				return nil, err
+			}
+			gtStatics, err := g.getGenType(typeDefStatics, runtimeClass, true)
+			if err != nil {
+				return nil, err
+			}
+			genTypes = append(genTypes, gtStatics)
 		}
-		gtStatics, err := g.getGenType(typeDefStatics, runtimeClass, true)
-		if err != nil {
-			return nil, err
-		}
-		genTypes = append(genTypes, gtStatics)
 	}
 
 	return &genData{

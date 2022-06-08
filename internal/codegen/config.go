@@ -6,6 +6,9 @@ import "fmt"
 type Config struct {
 	Debug bool
 	Class string
+
+	SkipFactory bool
+	SkipStatics bool
 }
 
 // NewConfig returns a new Config with default values.
