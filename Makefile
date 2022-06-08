@@ -29,4 +29,4 @@ gen-files:
 
 .PHONY: go-test
 go-test:
-	go test github.com/saltosystems/winrt-go/winrt
+	go test github.com/saltosystems/winrt-go/...
