@@ -9,7 +9,9 @@ import (
 )
 
 type genData struct {
-	Types []genType
+	Package string
+	Imports []string
+	Types   []genType
 }
 
 type genType struct {

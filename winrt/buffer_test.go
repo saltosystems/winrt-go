@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/winrt"
+	"github.com/saltosystems/winrt-go/winrt/windows/storage/streams/buffer"
 )
 
 func TestMain(m *testing.M) {
@@ -17,7 +17,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewBuffer(t *testing.T) {
-	b, err := winrt.Create(0)
+	b, err := buffer.Create(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestNewBuffer(t *testing.T) {
 }
 
 func TestSetCapacity(t *testing.T) {
-	b, err := winrt.Create(0)
+	b, err := buffer.Create(0)
 	if err != nil {
 		t.Fatal(err)
 	}
