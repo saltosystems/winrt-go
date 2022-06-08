@@ -1,0 +1,28 @@
+func {{if .FuncOwner}}
+    (v *{{.FuncOwner}})
+{{- end -}}
+
+{{funcName .}}
+
+{{- /* input params */ -}}
+
+(
+{{- range .InParams -}}
+    {{.Name}} {{.Type}},
+{{- end -}}
+)
+
+{{- /* return params */ -}}
+
+(
+{{- if .ReturnParam -}}
+    {{.ReturnParam.Type}},
+{{- end -}}
+error)
+
+
+{{- /* method body */ -}}
+
+{
+{{template "funcimpl.tmpl" .}}
+}

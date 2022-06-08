@@ -1,14 +1,20 @@
 type {{.Name}} struct {
-    {{range .EmbeddedStructs}}
-        {{.Package}}.{{.Name}}
-    {{end}}
-
-    {{range .Methods}}
-        {{- if .IsStatic}}
-            {{continue}}
-        {{else if eq .Name ".ctor"}}
-            {{continue}}
-        {{end -}}
-        {{methodName .}} uintptr
-    {{end}}
+    ole.IInspectable
 }
+
+type {{.Name}}Vtbl struct {
+    ole.IInspectableVtbl
+
+    {{range .Funcs}}
+        {{if .IsConstructor}}{{continue}}{{end -}}
+        {{funcName .}} uintptr
+    {{- end}}
+}
+
+func (v *{{.Name}}) VTable() *{{.Name}}Vtbl {
+	return (*{{.Name}}Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+{{range .Funcs}}
+{{template "func.tmpl" .}}
+{{end}}
