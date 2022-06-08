@@ -30,6 +30,7 @@ type generator struct {
 
 	logger log.Logger
 
+	genData  *genData
 	winmdCtx *types.Context
 }
 
@@ -117,18 +118,23 @@ func (g *generator) generateClass(class string, i uint32) error {
 	}
 
 	// get data & execute templates
-	data, err := g.getGenData(typeDef)
-	if err != nil {
+
+	if err := g.initGenData(typeDef); err != nil {
 		return err
 	}
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", g.genData); err != nil {
 		return err
 	}
 
 	// create file & write contents
-	filename := strings.ToLower(typeDef.TypeName)
-	file, err := os.Create(filepath.Clean(filename + ".go"))
+	folder := typeToFolder(typeDef.TypeNamespace, typeDef.TypeName)
+	filename := folder + "/" + strings.ToLower(typeDef.TypeName) + ".go"
+	err = os.MkdirAll(folder, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(filepath.Clean(filename))
 	if err != nil {
 		return err
 	}
@@ -146,6 +152,15 @@ func (g *generator) generateClass(class string, i uint32) error {
 	_, err = file.Write(formatted)
 
 	return err
+}
+
+func typeToFolder(ns, name string) string {
+	fullName := ns + "." + name
+	return strings.ToLower(strings.Replace(fullName, ".", "/", -1))
+}
+
+func typePackage(ns, name string) string {
+	return strings.ToLower(name)
 }
 
 func (g *generator) typeDefByIndex(i uint32) (types.TypeDef, error) {
@@ -167,7 +182,7 @@ func parseWinMDFile(path string) (*types.Context, error) {
 	return types.FromPE(f)
 }
 
-func (g *generator) getGenData(runtimeClass types.TypeDef) (*genData, error) {
+func (g *generator) initGenData(runtimeClass types.TypeDef) error {
 	// runtime classes have their methods split between three interfaces:
 	// Buffer for example
 	// - IBuffer (methods)
@@ -175,22 +190,23 @@ func (g *generator) getGenData(runtimeClass types.TypeDef) (*genData, error) {
 	// - IBufferStatics (static methods)
 	// and we need to generate types to hold all the methods in separate structures
 
-	var genTypes []genType
+	g.genData = &genData{
+		Package: strings.ToLower(runtimeClass.TypeName),
+	}
 
 	// the interface should always exist
 	classIndex, err := g.findClass(runtimeClass.TypeNamespace + ".I" + runtimeClass.TypeName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	typeDefIntf, err := g.typeDefByIndex(classIndex)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	generatedInterface, err := g.getGenType(typeDefIntf, runtimeClass, false)
-	if err != nil {
-		return nil, err
+
+	if err := g.addGenType(typeDefIntf, runtimeClass, false); err != nil {
+		return err
 	}
-	genTypes = append(genTypes, generatedInterface)
 
 	if !g.skipFactory {
 		// the factory (may not exist)
@@ -198,13 +214,12 @@ func (g *generator) getGenData(runtimeClass types.TypeDef) (*genData, error) {
 		if err == nil {
 			typeDefFactory, err := g.typeDefByIndex(classIndex)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			gtFactory, err := g.getGenType(typeDefFactory, runtimeClass, true)
-			if err != nil {
-				return nil, err
+
+			if err := g.addGenType(typeDefFactory, runtimeClass, true); err != nil {
+				return err
 			}
-			genTypes = append(genTypes, gtFactory)
 		}
 	}
 
@@ -214,31 +229,39 @@ func (g *generator) getGenData(runtimeClass types.TypeDef) (*genData, error) {
 		if err == nil {
 			typeDefStatics, err := g.typeDefByIndex(classIndex)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			gtStatics, err := g.getGenType(typeDefStatics, runtimeClass, true)
-			if err != nil {
-				return nil, err
+			if err := g.addGenType(typeDefStatics, runtimeClass, true); err != nil {
+				return err
 			}
-			genTypes = append(genTypes, gtStatics)
 		}
 	}
 
-	return &genData{
-		Types: genTypes,
-	}, nil
+	return nil
 }
 
-func (g *generator) getGenType(typeDef, runtimeClass types.TypeDef, activatable bool) (genType, error) {
+func (g *generator) addType(gt genType) {
+	g.genData.Types = append(g.genData.Types, gt)
+}
+
+func (g *generator) addImportFor(ns, name string) {
+	folder := typeToFolder(ns, name)
+	i := "github.com/saltosystems/winrt-go/winrt/" + folder
+	g.genData.Imports = append(g.genData.Imports, i)
+}
+
+func (g *generator) addGenType(typeDef, runtimeClass types.TypeDef, activatable bool) error {
 	// class interface
 	funcs, err := g.getGenFuncs(typeDef, runtimeClass, activatable)
 	if err != nil {
-		return genType{}, nil
+		return err
 	}
-	return genType{
+
+	g.addType(genType{
 		Name:  typeDef.TypeName,
 		Funcs: funcs,
-	}, nil
+	})
+	return nil
 }
 
 func (g *generator) getGenFuncs(typeDef, runtimeClass types.TypeDef, activatable bool) ([]genFunc, error) {
@@ -285,22 +308,22 @@ func (g *generator) getGenFuncs(typeDef, runtimeClass types.TypeDef, activatable
 	return genFuncs, nil
 }
 
-func (g *generator) genFuncFromMethod(t, runtimeClass types.TypeDef, m types.MethodDef) (*genFunc, error) {
-	params, err := g.getInParameters(t, m)
+func (g *generator) genFuncFromMethod(typeDef, runtimeClass types.TypeDef, m types.MethodDef) (*genFunc, error) {
+	params, err := g.getInParameters(typeDef, runtimeClass, m)
 	if err != nil {
 		return nil, err
 	}
 
-	retParam, err := g.getReturnParameters(t, m)
+	retParam, err := g.getReturnParameters(typeDef, runtimeClass, m)
 	if err != nil {
 		return nil, err
 	}
 
 	var parentGUID string
-	parentGUID, err = g.typeGUID(t)
+	parentGUID, err = g.typeGUID(typeDef)
 	if err != nil {
 		// the type may not contain this information, just ignore it
-		_ = level.Warn(g.logger).Log("msg", "failed to get type GUID", "type", t.TypeNamespace+"."+t.TypeName, "err", err)
+		_ = level.Warn(g.logger).Log("msg", "failed to get type GUID", "type", typeDef.TypeNamespace+"."+typeDef.TypeName, "err", err)
 	}
 
 	return &genFunc{
@@ -309,10 +332,10 @@ func (g *generator) genFuncFromMethod(t, runtimeClass types.TypeDef, m types.Met
 		InParams:       params,
 		ReturnParam:    retParam,
 		Signature:      m.Signature,
-		ParentType:     t,
+		ParentType:     typeDef,
 		ParentTypeGUID: parentGUID,
 		RuntimeClass:   runtimeClass,
-		FuncOwner:      t.TypeName,
+		FuncOwner:      typeDef.TypeName,
 	}, nil
 }
 
@@ -379,7 +402,7 @@ func staticsTypeName(t types.TypeDef) string {
 	return t.TypeName + "Statics"
 }
 
-func (g *generator) getInParameters(t types.TypeDef, m types.MethodDef) ([]genParam, error) {
+func (g *generator) getInParameters(t, rt types.TypeDef, m types.MethodDef) ([]genParam, error) {
 
 	params, err := m.ResolveParamList(g.winmdCtx)
 	if err != nil {
@@ -398,14 +421,14 @@ func (g *generator) getInParameters(t types.TypeDef, m types.MethodDef) ([]genPa
 	for i, e := range mr.Params {
 		genParams = append(genParams, genParam{
 			Name: getParamName(params, uint16(i+1)),
-			Type: g.elementType(e),
+			Type: g.elementType(e, typePackage(rt.TypeNamespace, rt.TypeName)),
 		})
 	}
 
 	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(t types.TypeDef, m types.MethodDef) (*genParam, error) {
+func (g *generator) getReturnParameters(t, rt types.TypeDef, m types.MethodDef) (*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := m.Signature.Reader()
@@ -421,7 +444,7 @@ func (g *generator) getReturnParameters(t types.TypeDef, m types.MethodDef) (*ge
 
 	return &genParam{
 		Name:         "",
-		Type:         g.elementType(methodSignature.Return),
+		Type:         g.elementType(methodSignature.Return, typePackage(rt.TypeNamespace, rt.TypeName)),
 		DefaultValue: g.elementDefaultValue(methodSignature.Return),
 	}, nil
 }
@@ -435,7 +458,7 @@ func getParamName(params []types.Param, i uint16) string {
 	return "__ERROR__"
 }
 
-func (g *generator) elementType(e types.Element) string {
+func (g *generator) elementType(e types.Element, currentPkg string) string {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
 		return "bool"
@@ -465,15 +488,24 @@ func (g *generator) elementType(e types.Element) string {
 		return "string"
 	case types.ELEMENT_TYPE_CLASS:
 		// return class name
-		_, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
 			return "__ERROR_ELEMENT_TYPE_CLASS__"
 		}
+
 		// this may be the runtime class itself, but we only know the interfaces
 		// TODO: make this smarter
 		if !strings.HasPrefix(name, "I") {
 			name = "I" + name
 		}
+
+		// name is always an interface, so we need to remove the initial I
+		typePkg := typePackage(namespace, name[1:])
+		if currentPkg != typePkg {
+			g.addImportFor(namespace, name[1:])
+			name = typePkg + "." + name
+		}
+
 		return "*" + name
 	default:
 		return "__ERROR_" + e.Type.Kind.String() + "__"
