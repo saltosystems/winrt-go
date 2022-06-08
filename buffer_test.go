@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/winrt/windows/storage/streams/buffer"
+	"github.com/saltosystems/winrt-go/windows/storage/streams/buffer"
 )
 
 func TestMain(m *testing.M) {

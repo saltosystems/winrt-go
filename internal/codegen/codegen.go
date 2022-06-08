@@ -246,7 +246,7 @@ func (g *generator) addType(gt genType) {
 
 func (g *generator) addImportFor(ns, name string) {
 	folder := typeToFolder(ns, name)
-	i := "github.com/saltosystems/winrt-go/winrt/" + folder
+	i := "github.com/saltosystems/winrt-go/" + folder
 	g.genData.Imports = append(g.genData.Imports, i)
 }
 
