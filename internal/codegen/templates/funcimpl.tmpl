@@ -1,0 +1,31 @@
+{{if .IsConstructor -}}
+    inspectable, err := ole.RoGetActivationFactory("{{.RuntimeClass.TypeNamespace}}.{{.RuntimeClass.TypeName}}", ole.NewGUID("{{.ParentTypeGUID}}"))
+    if err != nil {
+        return nil, err
+    }
+    return (*{{.ParentType.TypeName}})(unsafe.Pointer(inspectable)), nil
+{{- else}}
+    {{if .ReturnParam }}
+        var out {{.ReturnParam.Type}}
+    {{end }}
+
+    hr, _, _ := syscall.SyscallN(
+        v.VTable().{{funcName .}},
+        // this
+        uintptr(unsafe.Pointer(v)),
+        {{range .InParams -}}
+            // in params
+            uintptr({{.Name}}),   // in {{.Name}}
+        {{end -}}
+        {{if .ReturnParam -}}
+            // out params
+            uintptr(unsafe.Pointer(&out)), // out {{.ReturnParam.Type}}
+        {{end}})
+
+    
+    if err := makeError(hr); err != nil {
+        return {{if .ReturnParam }}{{.ReturnParam.DefaultValue}}, {{end}}err
+    }
+
+    return {{if .ReturnParam }}out, {{end}}nil
+{{- end -}}

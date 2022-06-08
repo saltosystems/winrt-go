@@ -20,3 +20,170 @@ type IBufferVtbl struct {
 	GetLength   uintptr
 	SetLength   uintptr
 }
+
+func (v *IBuffer) VTable() *IBufferVtbl {
+	return (*IBufferVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *IBuffer) GetCapacity() (uint32, error) {
+
+	var out uint32
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetCapacity,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// out params
+		uintptr(unsafe.Pointer(&out)), // out uint32
+	)
+
+	if err := makeError(hr); err != nil {
+		return 0, err
+	}
+
+	return out, nil
+}
+
+func (v *IBuffer) GetLength() (uint32, error) {
+
+	var out uint32
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetLength,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// out params
+		uintptr(unsafe.Pointer(&out)), // out uint32
+	)
+
+	if err := makeError(hr); err != nil {
+		return 0, err
+	}
+
+	return out, nil
+}
+
+func (v *IBuffer) SetLength(value uint32) error {
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().SetLength,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// in params
+		uintptr(value), // in value
+	)
+
+	if err := makeError(hr); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type IBufferFactory struct {
+	ole.IInspectable
+}
+
+type IBufferFactoryVtbl struct {
+	ole.IInspectableVtbl
+
+	Create uintptr
+}
+
+func (v *IBufferFactory) VTable() *IBufferFactoryVtbl {
+	return (*IBufferFactoryVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func ActivateIBufferFactory() (*IBufferFactory, error) {
+	inspectable, err := ole.RoGetActivationFactory("Windows.Storage.Streams.Buffer", ole.NewGUID("71af914d-c10f-484b-bc50-14bc623b3a27"))
+	if err != nil {
+		return nil, err
+	}
+	return (*IBufferFactory)(unsafe.Pointer(inspectable)), nil
+}
+
+func (v *IBufferFactory) Create(capacity uint32) (*IBuffer, error) {
+
+	var out *IBuffer
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().Create,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// in params
+		uintptr(capacity), // in capacity
+		// out params
+		uintptr(unsafe.Pointer(&out)), // out *IBuffer
+	)
+
+	if err := makeError(hr); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+type IBufferStatics struct {
+	ole.IInspectable
+}
+
+type IBufferStaticsVtbl struct {
+	ole.IInspectableVtbl
+
+	CreateCopyFromMemoryBuffer    uintptr
+	CreateMemoryBufferOverIBuffer uintptr
+}
+
+func (v *IBufferStatics) VTable() *IBufferStaticsVtbl {
+	return (*IBufferStaticsVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func ActivateIBufferStatics() (*IBufferStatics, error) {
+	inspectable, err := ole.RoGetActivationFactory("Windows.Storage.Streams.Buffer", ole.NewGUID("e901e65b-d716-475a-a90a-af7229b1e741"))
+	if err != nil {
+		return nil, err
+	}
+	return (*IBufferStatics)(unsafe.Pointer(inspectable)), nil
+}
+
+func (v *IBufferStatics) CreateCopyFromMemoryBuffer(input *IMemoryBuffer) (*IBuffer, error) {
+
+	var out *IBuffer
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().CreateCopyFromMemoryBuffer,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// in params
+		uintptr(input), // in input
+		// out params
+		uintptr(unsafe.Pointer(&out)), // out *IBuffer
+	)
+
+	if err := makeError(hr); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func (v *IBufferStatics) CreateMemoryBufferOverIBuffer(input *IBuffer) (*IMemoryBuffer, error) {
+
+	var out *IMemoryBuffer
+
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().CreateMemoryBufferOverIBuffer,
+		// this
+		uintptr(unsafe.Pointer(v)),
+		// in params
+		uintptr(input), // in input
+		// out params
+		uintptr(unsafe.Pointer(&out)), // out *IMemoryBuffer
+	)
+
+	if err := makeError(hr); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}

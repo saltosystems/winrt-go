@@ -4,36 +4,39 @@ import (
 	"embed"
 	"strings"
 	"text/template"
+
+	"github.com/tdakkota/win32metadata/types"
 )
 
 type genData struct {
-	Imports []genImport
-	Types   []genType
-	Funcs   []genFunc
-}
-
-type genImport struct {
-	Alias string
-	Name  string
+	Types []genType
 }
 
 type genType struct {
-	Name            string
-	EmbeddedStructs []qualifiedID
-	Methods         []genMethod
+	Name  string
+	Funcs []genFunc
 }
 
-type genMethod struct {
-	Name     string
-	IsStatic bool
+type genFunc struct {
+	Name          string
+	IsConstructor bool
+
+	FuncOwner      string
+	ParentType     types.TypeDef
+	ParentTypeGUID string
+	RuntimeClass   types.TypeDef
+
+	Signature types.Blob
+
+	InParams    []genParam
+	ReturnParam *genParam // this may be nil
 }
 
-type qualifiedID struct {
-	Package string
-	Name    string
+type genParam struct {
+	Name         string
+	Type         string
+	DefaultValue string
 }
-
-type genFunc struct{}
 
 //go:embed templates/*
 var templatesFS embed.FS
@@ -46,14 +49,13 @@ func getTemplates() (*template.Template, error) {
 
 func funcs() template.FuncMap {
 	return template.FuncMap{
-		"methodName": methodName,
+		"funcName": funcName,
 	}
 }
 
-func methodName(m genMethod) string {
+// funcName is used to generate the name of a function.
+func funcName(m genFunc) string {
 	switch {
-	case m.Name == ".ctor":
-		return "New"
 	case strings.HasPrefix(m.Name, "get_"):
 		return strings.Replace(m.Name, "get_", "Get", 1)
 	case strings.HasPrefix(m.Name, "put_"):

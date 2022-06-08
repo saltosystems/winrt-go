@@ -4,15 +4,11 @@
 package winrt
 
 import (
-{{- range .Imports }}
-	{{if .Alias}}{{.Alias}} {{end}}"{{.Name}}"
-{{- end}}
+	"syscall"
+	"unsafe"
+	"github.com/go-ole/go-ole"
 )
 
 {{range .Types}}
 {{template "type.tmpl" .}}
-{{end}}
-
-{{range .Funcs}}
-{{template "func.tmpl" .}}
 {{end}}
