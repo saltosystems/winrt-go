@@ -15,7 +15,7 @@ sanity-check: $(sanity_check_targets)
 build: $(build_targets)
 
 .PHONY: test
-test: $(test_targets)
+test: $(test_targets) go-test
 
 .PHONY: release
 release: $(release_targets)
@@ -26,3 +26,7 @@ clean: $(clean_targets)
 .PHONY: gen-files
 gen-files:
 	go generate github.com/saltosystems/winrt-go/...
+
+.PHONY: go-test
+go-test:
+	go test github.com/saltosystems/winrt-go/winrt
