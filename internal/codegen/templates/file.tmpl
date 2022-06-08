@@ -7,7 +7,6 @@ import (
 	"syscall"
 	"unsafe"
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/winrt"
 	{{range .Imports}}"{{.}}"
 	{{end}}
 )
@@ -15,10 +14,3 @@ import (
 {{range .Types}}
 {{template "type.tmpl" .}}
 {{end}}
-
-func makeError(hr uintptr) error {
-	if hr != 0 {
-		return ole.NewError(hr)
-	}
-	return nil
-}

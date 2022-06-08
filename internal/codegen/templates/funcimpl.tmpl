@@ -23,8 +23,8 @@
         {{end}})
 
     
-    if err := winrt.MakeError(hr); err != nil {
-        return {{if .ReturnParam }}{{.ReturnParam.DefaultValue}}, {{end}}err
+    if hr != 0 {
+        return {{if .ReturnParam }}{{.ReturnParam.DefaultValue}}, {{end}}ole.NewError(hr)
     }
 
     return {{if .ReturnParam }}out, {{end}}nil

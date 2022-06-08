@@ -5,7 +5,6 @@ package buffer
 
 import (
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/winrt"
 	"syscall"
 	"unsafe"
 )
@@ -38,8 +37,8 @@ func (v *IBuffer) GetCapacity() (uint32, error) {
 		uintptr(unsafe.Pointer(&out)), // out uint32
 	)
 
-	if err := winrt.MakeError(hr); err != nil {
-		return 0, err
+	if hr != 0 {
+		return 0, ole.NewError(hr)
 	}
 
 	return out, nil
@@ -57,8 +56,8 @@ func (v *IBuffer) GetLength() (uint32, error) {
 		uintptr(unsafe.Pointer(&out)), // out uint32
 	)
 
-	if err := winrt.MakeError(hr); err != nil {
-		return 0, err
+	if hr != 0 {
+		return 0, ole.NewError(hr)
 	}
 
 	return out, nil
@@ -74,8 +73,8 @@ func (v *IBuffer) SetLength(value uint32) error {
 		uintptr(value), // in value
 	)
 
-	if err := winrt.MakeError(hr); err != nil {
-		return err
+	if hr != 0 {
+		return ole.NewError(hr)
 	}
 
 	return nil
@@ -117,16 +116,9 @@ func (v *IBufferFactory) Create(capacity uint32) (*IBuffer, error) {
 		uintptr(unsafe.Pointer(&out)), // out *IBuffer
 	)
 
-	if err := winrt.MakeError(hr); err != nil {
-		return nil, err
+	if hr != 0 {
+		return nil, ole.NewError(hr)
 	}
 
 	return out, nil
-}
-
-func makeError(hr uintptr) error {
-	if hr != 0 {
-		return ole.NewError(hr)
-	}
-	return nil
 }
