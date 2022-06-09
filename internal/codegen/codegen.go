@@ -341,6 +341,38 @@ func (g *generator) typeGUID(t types.TypeDef) (string, error) {
 			continue
 		}
 
+		// is the blob a guid?
+		if cAttrTypeTable, ok := cAttr.Type.Table(); !ok || cAttrTypeTable != md.MemberRef {
+			continue
+		}
+		row, ok = cAttr.Type.Row(g.winmdCtx)
+		if !ok {
+			continue // something failed
+		}
+		var typeMemberRef types.MemberRef
+		if err := typeMemberRef.FromRow(row); err != nil {
+			continue
+		}
+
+		typeClassTable, ok := typeMemberRef.Class.Table()
+		if !ok || typeClassTable != md.TypeRef {
+			continue
+		}
+		row, ok = typeMemberRef.Class.Row(g.winmdCtx)
+		if !ok {
+			continue // something failed
+		}
+
+		var classTypeRef types.TypeRef
+		if err := classTypeRef.FromRow(row); err != nil {
+			continue
+		}
+
+		if classTypeRef.TypeNamespace != "Windows.Foundation.Metadata" || classTypeRef.TypeName != "GuidAttribute" {
+			// not a guid
+			continue
+		}
+
 		guid, err := guidBlobToString(cAttr.Value)
 		if err != nil {
 			// I'm not sure if the type may have another blob with the same
