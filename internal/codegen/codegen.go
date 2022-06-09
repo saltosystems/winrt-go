@@ -65,7 +65,7 @@ func (g *generator) run() error {
 		}
 		g.winmdCtx = winmdCtx
 
-		classIndex, err := g.findClass(g.class)
+		typeDef, err := g.typeDefByName(g.class)
 		if err != nil {
 			// class not found errors are ok
 			if _, ok := err.(*classNotFoundError); ok {
@@ -75,33 +75,30 @@ func (g *generator) run() error {
 			return err
 		}
 
-		return g.generateClass(g.class, classIndex)
+		return g.generateClass(*typeDef)
 	}
 
 	return fmt.Errorf("class %s was not found", g.class)
 
 }
 
-func (g *generator) findClass(class string) (uint32, error) {
+func (g *generator) typeDefByName(class string) (*types.TypeDef, error) {
 	typeDefTable := g.winmdCtx.Table(md.TypeDef)
 	for i := uint32(0); i < typeDefTable.RowCount(); i++ {
-		var t types.TypeDef
-		if err := t.FromRow(typeDefTable.Row(i)); err != nil {
-			return 0, err
+		var typeDef types.TypeDef
+		if err := typeDef.FromRow(typeDefTable.Row(i)); err != nil {
+			return nil, err
 		}
 
-		if t.TypeNamespace+"."+t.TypeName == class {
-			return i, nil
+		if typeDef.TypeNamespace+"."+typeDef.TypeName == class {
+			return &typeDef, nil
 		}
 	}
-	return 0, &classNotFoundError{class: class}
+
+	return nil, &classNotFoundError{class: class}
 }
 
-func (g *generator) generateClass(class string, i uint32) error {
-	typeDef, err := g.typeDefByIndex(i)
-	if err != nil {
-		return err
-	}
+func (g *generator) generateClass(typeDef types.TypeDef) error {
 
 	// we only support runtime classes: check the tdWindowsRuntime flag (0x4000)
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
@@ -109,7 +106,7 @@ func (g *generator) generateClass(class string, i uint32) error {
 		return fmt.Errorf("%s.%s is not a runtime class", typeDef.TypeNamespace, typeDef.TypeName)
 	}
 
-	_ = level.Info(g.logger).Log("msg", "generating class", "class", class)
+	_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
 	// get templates
 	tmpl, err := getTemplates()
@@ -119,7 +116,7 @@ func (g *generator) generateClass(class string, i uint32) error {
 
 	// get data & execute templates
 
-	if err := g.initGenData(typeDef); err != nil {
+	if err := g.initCodeGenData(typeDef); err != nil {
 		return err
 	}
 	var buf bytes.Buffer
@@ -163,15 +160,6 @@ func typePackage(ns, name string) string {
 	return strings.ToLower(name)
 }
 
-func (g *generator) typeDefByIndex(i uint32) (types.TypeDef, error) {
-	var typeDef types.TypeDef
-	typeDefTable := g.winmdCtx.Table(md.TypeDef)
-	if err := typeDef.FromRow(typeDefTable.Row(i)); err != nil {
-		return types.TypeDef{}, err
-	}
-	return typeDef, nil
-}
-
 func parseWinMDFile(path string) (*types.Context, error) {
 	f, err := winmd.Open(path)
 	if err != nil {
@@ -182,7 +170,7 @@ func parseWinMDFile(path string) (*types.Context, error) {
 	return types.FromPE(f)
 }
 
-func (g *generator) initGenData(runtimeClass types.TypeDef) error {
+func (g *generator) initCodeGenData(runtimeClass types.TypeDef) error {
 	// runtime classes have their methods split between three interfaces:
 	// Buffer for example
 	// - IBuffer (methods)
@@ -195,46 +183,31 @@ func (g *generator) initGenData(runtimeClass types.TypeDef) error {
 	}
 
 	// the interface should always exist
-	classIndex, err := g.findClass(runtimeClass.TypeNamespace + ".I" + runtimeClass.TypeName)
-	if err != nil {
-		return err
-	}
-	typeDefIntf, err := g.typeDefByIndex(classIndex)
-	if err != nil {
-		return err
-	}
-
-	if err := g.addGenType(typeDefIntf, runtimeClass, false); err != nil {
+	if err := g.findAndProcessType(runtimeClass.TypeNamespace+"."+interfaceTypeName(runtimeClass), runtimeClass, false); err != nil {
 		return err
 	}
 
 	if !g.skipFactory {
-		// the factory (may not exist)
-		classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + factoryTypeName(typeDefIntf))
-		if err == nil {
-			typeDefFactory, err := g.typeDefByIndex(classIndex)
-			if err != nil {
-				return err
-			}
-
-			if err := g.addGenType(typeDefFactory, runtimeClass, true); err != nil {
-				return err
-			}
-		}
+		// factory methods (may not exist, so we ignore the error)
+		_ = g.findAndProcessType(runtimeClass.TypeNamespace+"."+factoryTypeName(runtimeClass), runtimeClass, true)
 	}
 
 	if !g.skipStatics {
-		// statics (may not exist)
-		classIndex, err = g.findClass(runtimeClass.TypeNamespace + "." + staticsTypeName(typeDefIntf))
-		if err == nil {
-			typeDefStatics, err := g.typeDefByIndex(classIndex)
-			if err != nil {
-				return err
-			}
-			if err := g.addGenType(typeDefStatics, runtimeClass, true); err != nil {
-				return err
-			}
-		}
+		// statics (may not exist, so we ignore the error)
+		_ = g.findAndProcessType(runtimeClass.TypeNamespace+"."+staticsTypeName(runtimeClass), runtimeClass, true)
+	}
+
+	return nil
+}
+
+func (g *generator) findAndProcessType(fullname string, runtimeClass types.TypeDef, activatable bool) error {
+	typeDef, err := g.typeDefByName(fullname)
+	if err != nil {
+		return err
+	}
+
+	if err := g.convertAndAddType(*typeDef, runtimeClass, activatable); err != nil {
+		return err
 	}
 
 	return nil
@@ -250,7 +223,7 @@ func (g *generator) addImportFor(ns, name string) {
 	g.genData.Imports = append(g.genData.Imports, i)
 }
 
-func (g *generator) addGenType(typeDef, runtimeClass types.TypeDef, activatable bool) error {
+func (g *generator) convertAndAddType(typeDef, runtimeClass types.TypeDef, activatable bool) error {
 	// class interface
 	funcs, err := g.getGenFuncs(typeDef, runtimeClass, activatable)
 	if err != nil {
@@ -363,25 +336,41 @@ func (g *generator) typeGUID(t types.TypeDef) (string, error) {
 			continue
 		}
 
-		if parentTypeDef.TypeNamespace == t.TypeNamespace && parentTypeDef.TypeName == t.TypeName {
-			// a type may have more than one blob, so do not immediately fail
-			guid, err := guidBlobToString(cAttr.Value)
-			if err != nil {
-				continue
-			}
-			return guid, nil
+		// does the blob belong to the type we're looking for?
+		if parentTypeDef.TypeNamespace != t.TypeNamespace || parentTypeDef.TypeName != t.TypeName {
+			continue
 		}
+
+		guid, err := guidBlobToString(cAttr.Value)
+		if err != nil {
+			// I'm not sure if the type may have another blob with the same
+			// characteristics so just continue looking for the GUID
+			continue
+		}
+
+		return guid, nil
 	}
 	return "", fmt.Errorf("GUID not found for type %s.%s", t.TypeNamespace, t.TypeName)
 }
 
 // guidBlobToString converts an array into the textual representation of a GUID
 func guidBlobToString(b types.Blob) (string, error) {
-	// the blob is surrounded by a header (0x01, 0x00) and a footer (0x00, 0x00). Remove them
-	guid := b[2 : len(b)-2]
-	if len(guid) != 16 {
-		return "", fmt.Errorf("invalid GUID blob length: %d", len(guid))
+	// the guid is a blob of 20 bytes
+	if len(b) != 20 {
+		return "", fmt.Errorf("invalid GUID blob length: %d", len(b))
 	}
+
+	// that starts with 0100
+	if b[0] != 0x01 || b[1] != 0x00 {
+		return "", fmt.Errorf("invalid GUID blob header, expected '0x01 0x00' but found '0x%02x 0x%02x'", b[0], b[1])
+	}
+
+	// and ends with 0000
+	if b[18] != 0x00 || b[19] != 0x00 {
+		return "", fmt.Errorf("invalid GUID blob footer, expected '0x00 0x00' but found '0x%02x 0x%02x'", b[18], b[19])
+	}
+
+	guid := b[2 : len(b)-2]
 	// the string version has 5 parts separated by '-'
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%04x%08x",
 		// The first 3 are encoded as little endian
@@ -394,12 +383,16 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
+func interfaceTypeName(t types.TypeDef) string {
+	return "I" + t.TypeName
+}
+
 func factoryTypeName(t types.TypeDef) string {
-	return t.TypeName + "Factory"
+	return interfaceTypeName(t) + "Factory"
 }
 
 func staticsTypeName(t types.TypeDef) string {
-	return t.TypeName + "Statics"
+	return interfaceTypeName(t) + "Statics"
 }
 
 func (g *generator) getInParameters(t, rt types.TypeDef, m types.MethodDef) ([]genParam, error) {
