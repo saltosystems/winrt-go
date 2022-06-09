@@ -25,6 +25,7 @@ clean: $(clean_targets)
 
 .PHONY: gen-files
 gen-files:
+	rm -rf $(CURDIR)/windows
 	go generate github.com/saltosystems/winrt-go/...
 
 .PHONY: go-test
