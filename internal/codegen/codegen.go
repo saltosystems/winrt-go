@@ -15,6 +15,10 @@ import (
 	"github.com/tdakkota/win32metadata/types"
 )
 
+const (
+	attributeTypeGUID = "Windows.Foundation.Metadata.GuidAttribute"
+)
+
 type classNotFoundError struct {
 	class string
 }
@@ -71,7 +75,7 @@ func (g *generator) run() error {
 			return err
 		}
 
-		return g.generateType(*typeDef)
+		return g.generate(*typeDef)
 	}
 
 	return fmt.Errorf("class %s was not found", g.class)
@@ -94,7 +98,7 @@ func (g *generator) typeDefByName(class string) (*types.TypeDef, error) {
 	return nil, &classNotFoundError{class: class}
 }
 
-func (g *generator) generateType(typeDef types.TypeDef) error {
+func (g *generator) generate(typeDef types.TypeDef) error {
 
 	// we only support WinRT types: check the tdWindowsRuntime flag (0x4000)
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
@@ -172,12 +176,126 @@ func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
 	}
 
-	// the interface should always exist
-	if err := g.convertAndAddType(typeDef, typeDef, false); err != nil {
+	if typeDef.Flags.Interface() {
+		return g.loadInterfaceData(typeDef)
+	}
+
+	return g.loadClassData(typeDef)
+}
+
+// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
+func (g *generator) loadInterfaceData(typeDef types.TypeDef) error {
+	// Any WinRT interface with private visibility must have a single ExclusiveToAttribute.
+	// the ExclusiveToAttribute must reference a runtime class.
+
+	// we do not support generating these types of classes, they are exclusive to a runtime class,
+	// and thus will be generated when the runtime class is generated.
+
+	if typeDef.Flags.NotPublic() {
+		return fmt.Errorf("interface %s is not public", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
+	}
+
+	// Any WinRT interface with public visibility must not have an ExclusiveToAttribute.
+	// Adding it as a documentation, there's no point on checking if this is true.
+
+	funcs, err := g.getGenFuncs(typeDef, typeDef, false)
+	if err != nil {
 		return err
 	}
 
+	// Interfaces' TypeDef rows must have a GuidAttribute as well as a VersionAttribute.
+	guid, err := g.typeGUID(typeDef)
+	if err != nil {
+		return err
+	}
+
+	g.addType(genType{
+		Name:  typeDef.TypeName,
+		GUID:  guid,
+		Funcs: funcs,
+	})
 	return nil
+}
+
+func (g *generator) loadClassData(typeDef types.TypeDef) error {
+	// class interface
+	funcs, err := g.getGenFuncs(typeDef, typeDef, false)
+	if err != nil {
+		return err
+	}
+
+	g.addType(genType{
+		Name:  typeDef.TypeName,
+		Funcs: funcs,
+	})
+	return nil
+}
+
+func (g *generator) getCustomAttributeForClassWithTypeClass(typeDef types.TypeDef, lookupAttrTypeClass string) ([]byte, error) {
+	cAttrTable := g.winmdCtx.Table(md.CustomAttribute)
+	for i := uint32(0); i < cAttrTable.RowCount(); i++ {
+		var cAttr types.CustomAttribute
+		if err := cAttr.FromRow(cAttrTable.Row(i)); err != nil {
+			continue
+		}
+
+		// - Parent: The owner of the Attribute must be the given typeDef
+		if cAttrParentTable, _ := cAttr.Parent.Table(); cAttrParentTable != md.TypeDef {
+			continue
+		}
+
+		var parentTypeDef types.TypeDef
+		row, ok := cAttr.Parent.Row(g.winmdCtx)
+		if !ok {
+			continue
+		}
+		if err := parentTypeDef.FromRow(row); err != nil {
+			continue
+		}
+
+		// does the blob belong to the type we're looking for?
+		if parentTypeDef.TypeNamespace != typeDef.TypeNamespace || parentTypeDef.TypeName != typeDef.TypeName {
+			continue
+		}
+
+		// - Type: the attribute type must be the given type
+		// the cAttr.Type table can be either a MemberRef or a MethodRef.
+		// Since we are looking for a type, we will only consider the MemberRef.
+		if cAttrTypeTable, _ := cAttr.Type.Table(); cAttrTypeTable != md.MemberRef {
+			continue
+		}
+
+		var attrTypeMemberRef types.MemberRef
+		row, ok = cAttr.Type.Row(g.winmdCtx)
+		if !ok {
+			continue
+		}
+		if err := attrTypeMemberRef.FromRow(row); err != nil {
+			continue
+		}
+
+		// we need to check the MemberRef Class
+		// the value can belong to several tables, but we are only going to check for TypeRef
+		if classTable, _ := attrTypeMemberRef.Class.Table(); classTable != md.TypeRef {
+			continue
+		}
+
+		var attrTypeRef types.TypeRef
+		row, ok = attrTypeMemberRef.Class.Row(g.winmdCtx)
+		if !ok {
+			continue
+		}
+		if err := attrTypeRef.FromRow(row); err != nil {
+			continue
+		}
+
+		if attrTypeRef.TypeNamespace+"."+attrTypeRef.TypeName == lookupAttrTypeClass {
+			return cAttr.Value, nil
+		}
+	}
+
+	return nil, fmt.Errorf("could not find CustomAttribute for %s.%s with type %s", typeDef.TypeNamespace, typeDef.TypeName, lookupAttrTypeClass)
 }
 
 func (g *generator) addType(gt genType) {
@@ -188,20 +306,6 @@ func (g *generator) addImportFor(ns, name string) {
 	folder := typeToFolder(ns, name)
 	i := "github.com/saltosystems/winrt-go/" + folder
 	g.genData.Imports = append(g.genData.Imports, i)
-}
-
-func (g *generator) convertAndAddType(typeDef, runtimeClass types.TypeDef, activatable bool) error {
-	// class interface
-	funcs, err := g.getGenFuncs(typeDef, runtimeClass, activatable)
-	if err != nil {
-		return err
-	}
-
-	g.addType(genType{
-		Name:  typeDef.TypeName,
-		Funcs: funcs,
-	})
-	return nil
 }
 
 func (g *generator) getGenFuncs(typeDef, runtimeClass types.TypeDef, activatable bool) ([]genFunc, error) {
@@ -279,77 +383,12 @@ func (g *generator) genFuncFromMethod(typeDef, runtimeClass types.TypeDef, m typ
 	}, nil
 }
 
-func (g *generator) typeGUID(t types.TypeDef) (string, error) {
-	// GUIDs are stored in custom attributes.
-	// To find the GUID of the given type, we need to iterate
-	// through all the custom attributes and find the one that
-	// matches the type
-	tableCustomAttributes := g.winmdCtx.Table(md.CustomAttribute)
-	for i := uint32(0); i < tableCustomAttributes.RowCount(); i++ {
-		var cAttr types.CustomAttribute
-		if err := cAttr.FromRow(tableCustomAttributes.Row(i)); err != nil {
-			continue
-		}
-
-		if cAttrParentTable, ok := cAttr.Parent.Table(); !ok || cAttrParentTable != md.TypeDef {
-			continue
-		}
-		row, ok := cAttr.Parent.Row(g.winmdCtx)
-		if !ok {
-			continue // something failed
-		}
-		var parentTypeDef types.TypeDef
-		if err := parentTypeDef.FromRow(row); err != nil {
-			continue
-		}
-
-		// does the blob belong to the type we're looking for?
-		if parentTypeDef.TypeNamespace != t.TypeNamespace || parentTypeDef.TypeName != t.TypeName {
-			continue
-		}
-
-		// is the blob a guid?
-		if cAttrTypeTable, ok := cAttr.Type.Table(); !ok || cAttrTypeTable != md.MemberRef {
-			continue
-		}
-		row, ok = cAttr.Type.Row(g.winmdCtx)
-		if !ok {
-			continue // something failed
-		}
-		var typeMemberRef types.MemberRef
-		if err := typeMemberRef.FromRow(row); err != nil {
-			continue
-		}
-
-		typeClassTable, ok := typeMemberRef.Class.Table()
-		if !ok || typeClassTable != md.TypeRef {
-			continue
-		}
-		row, ok = typeMemberRef.Class.Row(g.winmdCtx)
-		if !ok {
-			continue // something failed
-		}
-
-		var classTypeRef types.TypeRef
-		if err := classTypeRef.FromRow(row); err != nil {
-			continue
-		}
-
-		if classTypeRef.TypeNamespace != "Windows.Foundation.Metadata" || classTypeRef.TypeName != "GuidAttribute" {
-			// not a guid
-			continue
-		}
-
-		guid, err := guidBlobToString(cAttr.Value)
-		if err != nil {
-			// I'm not sure if the type may have another blob with the same
-			// characteristics so just continue looking for the GUID
-			continue
-		}
-
-		return guid, nil
+func (g *generator) typeGUID(typeDef types.TypeDef) (string, error) {
+	blob, err := g.getCustomAttributeForClassWithTypeClass(typeDef, attributeTypeGUID)
+	if err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("GUID not found for type %s.%s", t.TypeNamespace, t.TypeName)
+	return guidBlobToString(blob)
 }
 
 // guidBlobToString converts an array into the textual representation of a GUID

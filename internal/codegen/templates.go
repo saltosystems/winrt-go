@@ -16,6 +16,7 @@ type genData struct {
 
 type genType struct {
 	Name  string
+	GUID  string
 	Funcs []genFunc
 }
 

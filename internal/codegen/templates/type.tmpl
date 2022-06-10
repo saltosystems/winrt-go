@@ -1,3 +1,7 @@
+{{if .GUID}}
+const GUID{{.Name}} string = "{{.GUID}}"
+{{end}}
+
 type {{.Name}} struct {
     ole.IInspectable
 }
