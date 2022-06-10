@@ -3,7 +3,7 @@
 //go:build windows
 
 //nolint
-package buffer
+package streams
 
 import (
 	"github.com/go-ole/go-ole"
@@ -80,47 +80,4 @@ func (v *IBuffer) SetLength(value uint32) error {
 	}
 
 	return nil
-}
-
-type IBufferFactory struct {
-	ole.IInspectable
-}
-
-type IBufferFactoryVtbl struct {
-	ole.IInspectableVtbl
-
-	Create uintptr
-}
-
-func (v *IBufferFactory) VTable() *IBufferFactoryVtbl {
-	return (*IBufferFactoryVtbl)(unsafe.Pointer(v.RawVTable))
-}
-
-func ActivateIBufferFactory() (*IBufferFactory, error) {
-	inspectable, err := ole.RoGetActivationFactory("Windows.Storage.Streams.Buffer", ole.NewGUID("71af914d-c10f-484b-bc50-14bc623b3a27"))
-	if err != nil {
-		return nil, err
-	}
-	return (*IBufferFactory)(unsafe.Pointer(inspectable)), nil
-}
-
-func (v *IBufferFactory) Create(capacity uint32) (*IBuffer, error) {
-
-	var out *IBuffer
-
-	hr, _, _ := syscall.SyscallN(
-		v.VTable().Create,
-		// this
-		uintptr(unsafe.Pointer(v)),
-		// in params
-		uintptr(capacity), // in capacity
-		// out params
-		uintptr(unsafe.Pointer(&out)), // out *IBuffer
-	)
-
-	if hr != 0 {
-		return nil, ole.NewError(hr)
-	}
-
-	return out, nil
 }

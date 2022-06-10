@@ -24,9 +24,7 @@ func (e *classNotFoundError) Error() string {
 }
 
 type generator struct {
-	class       string
-	skipFactory bool
-	skipStatics bool
+	class string
 
 	logger log.Logger
 
@@ -41,10 +39,8 @@ func Generate(cfg *Config, logger log.Logger) error {
 	}
 
 	g := &generator{
-		class:       cfg.Class,
-		skipFactory: cfg.SkipFactory,
-		skipStatics: cfg.SkipStatics,
-		logger:      logger,
+		class:  cfg.Class,
+		logger: logger,
 	}
 	return g.run()
 }
@@ -75,7 +71,7 @@ func (g *generator) run() error {
 			return err
 		}
 
-		return g.generateClass(*typeDef)
+		return g.generateType(*typeDef)
 	}
 
 	return fmt.Errorf("class %s was not found", g.class)
@@ -98,12 +94,12 @@ func (g *generator) typeDefByName(class string) (*types.TypeDef, error) {
 	return nil, &classNotFoundError{class: class}
 }
 
-func (g *generator) generateClass(typeDef types.TypeDef) error {
+func (g *generator) generateType(typeDef types.TypeDef) error {
 
-	// we only support runtime classes: check the tdWindowsRuntime flag (0x4000)
+	// we only support WinRT types: check the tdWindowsRuntime flag (0x4000)
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 	if typeDef.Flags&0x4000 == 0 {
-		return fmt.Errorf("%s.%s is not a runtime class", typeDef.TypeNamespace, typeDef.TypeName)
+		return fmt.Errorf("%s.%s is not a WinRT class", typeDef.TypeNamespace, typeDef.TypeName)
 	}
 
 	_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
@@ -116,7 +112,7 @@ func (g *generator) generateClass(typeDef types.TypeDef) error {
 
 	// get data & execute templates
 
-	if err := g.initCodeGenData(typeDef); err != nil {
+	if err := g.loadCodeGenData(typeDef); err != nil {
 		return err
 	}
 	var buf bytes.Buffer
@@ -152,12 +148,13 @@ func (g *generator) generateClass(typeDef types.TypeDef) error {
 }
 
 func typeToFolder(ns, name string) string {
-	fullName := ns + "." + name
+	fullName := ns
 	return strings.ToLower(strings.Replace(fullName, ".", "/", -1))
 }
 
 func typePackage(ns, name string) string {
-	return strings.ToLower(name)
+	sns := strings.Split(ns, ".")
+	return strings.ToLower(sns[len(sns)-1])
 }
 
 func parseWinMDFile(path string) (*types.Context, error) {
@@ -170,43 +167,13 @@ func parseWinMDFile(path string) (*types.Context, error) {
 	return types.FromPE(f)
 }
 
-func (g *generator) initCodeGenData(runtimeClass types.TypeDef) error {
-	// runtime classes have their methods split between three interfaces:
-	// Buffer for example
-	// - IBuffer (methods)
-	// - IBufferFactory (constructors)
-	// - IBufferStatics (static methods)
-	// and we need to generate types to hold all the methods in separate structures
-
+func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 	g.genData = &genData{
-		Package: strings.ToLower(runtimeClass.TypeName),
+		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
 	}
 
 	// the interface should always exist
-	if err := g.findAndProcessType(runtimeClass.TypeNamespace+"."+interfaceTypeName(runtimeClass), runtimeClass, false); err != nil {
-		return err
-	}
-
-	if !g.skipFactory {
-		// factory methods (may not exist, so we ignore the error)
-		_ = g.findAndProcessType(runtimeClass.TypeNamespace+"."+factoryTypeName(runtimeClass), runtimeClass, true)
-	}
-
-	if !g.skipStatics {
-		// statics (may not exist, so we ignore the error)
-		_ = g.findAndProcessType(runtimeClass.TypeNamespace+"."+staticsTypeName(runtimeClass), runtimeClass, true)
-	}
-
-	return nil
-}
-
-func (g *generator) findAndProcessType(fullname string, runtimeClass types.TypeDef, activatable bool) error {
-	typeDef, err := g.typeDefByName(fullname)
-	if err != nil {
-		return err
-	}
-
-	if err := g.convertAndAddType(*typeDef, runtimeClass, activatable); err != nil {
+	if err := g.convertAndAddType(typeDef, typeDef, false); err != nil {
 		return err
 	}
 
@@ -413,18 +380,6 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint16(guid[8])<<8|uint16(guid[9]),
 		uint16(guid[10])<<8|uint16(guid[11]),
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
-}
-
-func interfaceTypeName(t types.TypeDef) string {
-	return "I" + t.TypeName
-}
-
-func factoryTypeName(t types.TypeDef) string {
-	return interfaceTypeName(t) + "Factory"
-}
-
-func staticsTypeName(t types.TypeDef) string {
-	return interfaceTypeName(t) + "Statics"
 }
 
 func (g *generator) getInParameters(t, rt types.TypeDef, m types.MethodDef) ([]genParam, error) {

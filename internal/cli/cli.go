@@ -17,8 +17,6 @@ func NewGenerateCommand(logger log.Logger) *subcommands.Command {
 	_ = fs.String("config", "", "config file (optional)")
 	fs.StringVar(&cfg.Class, "class", cfg.Class, "The class to generate. This should include the namespace and the class name, e.g. 'System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken'")
 	fs.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Enables the debug logging.")
-	fs.BoolVar(&cfg.SkipStatics, "skip-statics", cfg.SkipStatics, "Skips the static methods.")
-	fs.BoolVar(&cfg.SkipFactory, "skip-factory", cfg.SkipFactory, "Skips the factory methods (constructors).")
 	return subcommands.NewCommand(fs.Name(), fs, func() error {
 		if cfg.Debug {
 			logger = level.NewFilter(logger, level.AllowDebug())
