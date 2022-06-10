@@ -1,6 +1,4 @@
-{{if .GUID}}
 const GUID{{.Name}} string = "{{.GUID}}"
-{{end}}
 
 type {{.Name}} struct {
     ole.IInspectable
@@ -10,7 +8,6 @@ type {{.Name}}Vtbl struct {
     ole.IInspectableVtbl
 
     {{range .Funcs}}
-        {{if .IsConstructor}}{{continue}}{{end -}}
         {{funcName .}} uintptr
     {{- end}}
 }
