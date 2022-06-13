@@ -28,7 +28,8 @@ func (e *classNotFoundError) Error() string {
 }
 
 type generator struct {
-	class string
+	class        string
+	methodFilter *MethodFilter
 
 	logger log.Logger
 
@@ -43,8 +44,9 @@ func Generate(cfg *Config, logger log.Logger) error {
 	}
 
 	g := &generator{
-		class:  cfg.Class,
-		logger: logger,
+		class:        cfg.Class,
+		methodFilter: cfg.MethodFilter(),
+		logger:       logger,
 	}
 	return g.run()
 }
@@ -372,6 +374,7 @@ func (g *generator) genFuncFromMethod(typeDef, runtimeClass types.TypeDef, m typ
 
 	return &genFunc{
 		Name:           m.Name,
+		Implement:      g.shouldImplementMethod(m),
 		IsConstructor:  false,
 		InParams:       params,
 		ReturnParam:    retParam,
@@ -381,6 +384,10 @@ func (g *generator) genFuncFromMethod(typeDef, runtimeClass types.TypeDef, m typ
 		RuntimeClass:   runtimeClass,
 		FuncOwner:      typeDef.TypeName,
 	}, nil
+}
+
+func (g *generator) shouldImplementMethod(m types.MethodDef) bool {
+	return g.methodFilter.Filter(m.Name)
 }
 
 func (g *generator) typeGUID(typeDef types.TypeDef) (string, error) {

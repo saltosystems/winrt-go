@@ -24,6 +24,8 @@ type genFunc struct {
 	Name          string
 	IsConstructor bool
 
+	Implement bool
+
 	FuncOwner      string
 	ParentType     types.TypeDef
 	ParentTypeGUID string

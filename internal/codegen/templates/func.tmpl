@@ -1,28 +1,30 @@
-func {{if .FuncOwner}}
-    (v *{{.FuncOwner}})
-{{- end -}}
+{{if .Implement}}
+    func {{if .FuncOwner}}
+        (v *{{.FuncOwner}})
+    {{- end -}}
 
-{{funcName .}}
+    {{funcName .}}
 
-{{- /* input params */ -}}
+    {{- /* input params */ -}}
 
-(
-{{- range .InParams -}}
-    {{.Name}} {{.Type}},
-{{- end -}}
-)
+    (
+    {{- range .InParams -}}
+        {{.Name}} {{.Type}},
+    {{- end -}}
+    )
 
-{{- /* return params */ -}}
+    {{- /* return params */ -}}
 
-(
-{{- if .ReturnParam -}}
-    {{.ReturnParam.Type}},
-{{- end -}}
-error)
+    (
+    {{- if .ReturnParam -}}
+        {{.ReturnParam.Type}},
+    {{- end -}}
+    error)
 
 
-{{- /* method body */ -}}
+    {{- /* method body */ -}}
 
-{
-{{template "funcimpl.tmpl" .}}
-}
+    {
+    {{template "funcimpl.tmpl" .}}
+    }
+{{end}}
