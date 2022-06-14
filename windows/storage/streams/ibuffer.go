@@ -33,9 +33,7 @@ func (v *IBuffer) GetCapacity() (uint32, error) {
 	var out uint32
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetCapacity,
-		// this
-		uintptr(unsafe.Pointer(v)),
-		// out params
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(unsafe.Pointer(&out)), // out uint32
 	)
 
@@ -50,9 +48,7 @@ func (v *IBuffer) GetLength() (uint32, error) {
 	var out uint32
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetLength,
-		// this
-		uintptr(unsafe.Pointer(v)),
-		// out params
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(unsafe.Pointer(&out)), // out uint32
 	)
 
@@ -66,10 +62,8 @@ func (v *IBuffer) GetLength() (uint32, error) {
 func (v *IBuffer) SetLength(value uint32) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetLength,
-		// this
-		uintptr(unsafe.Pointer(v)),
-		// in params
-		uintptr(value), // in value
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(value),             // in value
 	)
 
 	if hr != 0 {

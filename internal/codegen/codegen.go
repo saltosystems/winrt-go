@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	attributeTypeGUID            = "Windows.Foundation.Metadata.GuidAttribute"
-	attributeTypeExclusiveTo     = "Windows.Foundation.Metadata.ExclusiveToAttribute"
-	attributeTypeStaticAttribute = "Windows.Foundation.Metadata.StaticAttribute"
+	attributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
+	attributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
+	attributeTypeStaticAttribute      = "Windows.Foundation.Metadata.StaticAttribute"
+	attributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
 )
 
 type classNotFoundError struct {
@@ -27,6 +28,11 @@ type classNotFoundError struct {
 
 func (e *classNotFoundError) Error() string {
 	return fmt.Sprintf("class %s was not found", e.class)
+}
+
+type qualifiedID struct {
+	Namespace string
+	Name      string
 }
 
 type generator struct {
@@ -246,10 +252,16 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 	implInterfaces := make([]string, 0, len(interfaces))
 	for _, iface := range interfaces {
 		pkg := ""
-		if typeDef.TypeNamespace != iface.TypeNamespace {
-			pkg = typePackage(iface.TypeNamespace, iface.TypeName) + "."
+		ifaceNS, ifaceName, err := g.winmdCtx.ResolveTypeDefOrRefName(iface)
+		if err != nil {
+			return nil, err
 		}
-		implInterfaces = append(implInterfaces, pkg+iface.TypeName)
+		if typeDef.TypeNamespace != ifaceNS {
+			pkg = typePackage(ifaceNS, ifaceName) + "."
+			g.addImportFor(ifaceNS, ifaceName)
+		}
+
+		implInterfaces = append(implInterfaces, pkg+ifaceName)
 	}
 
 	// static interfaces
@@ -270,6 +282,30 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 		if err != nil {
 			return nil, err
 		}
+		// if all methods from the statics interface have been filtered, then we can skip it
+		for _, m := range iface.Funcs {
+			if m.Implement {
+				// we only add the interface if it has at least one implemented method
+				staticInterfaces = append(staticInterfaces, *iface)
+				break
+			}
+		}
+	}
+	// Runtime classes have zero or more ActivatableAttribute custom attributes
+	activatableAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeActivatableAttribute)
+	for _, blob := range activatableAttributeBlobs {
+		class := extractClassFromBlob(blob)
+		activatableClass, err := g.typeDefByName(class)
+		if err != nil {
+			_ = level.Error(g.logger).Log("msg", "activatable class defined in ActivatableAttribute not found", "class", class, "err", err)
+			return nil, err
+		}
+
+		iface, err := g.createGenInterface(*activatableClass)
+		if err != nil {
+			return nil, err
+		}
+		// the logic to generate activatable interfaces and the static interfaces is the same
 		// if all methods from the statics interface have been filtered, then we can skip it
 		for _, m := range iface.Funcs {
 			if m.Implement {
@@ -394,8 +430,8 @@ func (g *generator) getTypeDefAttributesWithType(typeDef types.TypeDef, lookupAt
 	return result
 }
 
-func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.TypeDef, error) {
-	interfaces := make([]types.TypeDef, 0)
+func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.TypeDefOrRef, error) {
+	interfaces := make([]types.TypeDefOrRef, 0)
 
 	tableInterfaceImpl := g.winmdCtx.Table(md.InterfaceImpl)
 	for i := uint32(0); i < tableInterfaceImpl.RowCount(); i++ {
@@ -404,11 +440,8 @@ func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.Typ
 			return nil, err
 		}
 
-		table := g.winmdCtx.Table(md.TypeDef)
-		var classTd types.TypeDef
-		// FIXME: the -1 is a workaround to get rid of the following issue:
-		// https://github.com/tdakkota/win32metadata/issues/33
-		if err := classTd.FromRow(table.Row(uint32(interfaceImpl.Class) - 1)); err != nil {
+		classTd, err := interfaceImpl.ResolveClass(g.winmdCtx)
+		if err != nil {
 			return nil, err
 		}
 
@@ -422,16 +455,7 @@ func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.Typ
 			continue
 		}
 
-		ns, n, err := g.winmdCtx.ResolveTypeDefOrRefName(interfaceImpl.Interface)
-		if err != nil {
-			return nil, err
-		}
-
-		td, err := g.typeDefByName(ns + "." + n)
-		if err != nil {
-			return nil, err
-		}
-		interfaces = append(interfaces, *td)
+		interfaces = append(interfaces, interfaceImpl.Interface)
 	}
 
 	return interfaces, nil
@@ -452,7 +476,7 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
 	}
 
 	exclusiveToBlob, err := g.getTypeDefAttributeWithType(typeDef, attributeTypeExclusiveTo)
-	var exclusiveToType *types.TypeDef
+	var exclusiveToType string
 	// an error here is fine, we just won't have the ExclusiveTo attribute
 	if err == nil {
 		exclusiveToClass := extractClassFromBlob(exclusiveToBlob)
@@ -460,7 +484,7 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
 		if err != nil {
 			return nil, err
 		}
-		exclusiveToType = exclusiveToTypeCandidate
+		exclusiveToType = exclusiveToTypeCandidate.TypeNamespace + "." + exclusiveToTypeCandidate.TypeName
 	}
 
 	for _, m := range methods {
@@ -474,24 +498,42 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
 	return genFuncs, nil
 }
 
-func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo *types.TypeDef) (*genFunc, error) {
-	params, err := g.getInParameters(typeDef, m)
+func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo string) (*genFunc, error) {
+	params, reqInImports, err := g.getInParameters(typeDef, m)
 	if err != nil {
 		return nil, err
 	}
 
-	retParam, err := g.getReturnParameters(typeDef, m)
+	retParam, reqOutImports, err := g.getReturnParameters(typeDef, m)
 	if err != nil {
 		return nil, err
+	}
+
+	// add the type imports to the top of the file
+	// only if the method is going to be implemented
+	implement := g.shouldImplementMethod(m)
+	if implement {
+		curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
+
+		var allImports []qualifiedID
+		allImports = append(allImports, reqInImports...)
+		allImports = append(allImports, reqOutImports...)
+
+		for _, i := range allImports {
+			pkg := typePackage(i.Namespace, i.Name)
+			if curPackage != pkg {
+				// imports are addded globally
+				g.addImportFor(i.Namespace, i.Name)
+			}
+		}
 	}
 
 	return &genFunc{
 		Name:        m.Name,
-		Implement:   g.shouldImplementMethod(m),
+		Implement:   implement,
 		InParams:    params,
 		ReturnParam: retParam,
 		FuncOwner:   typeDefGoName(typeDef),
-
 		ExclusiveTo: exclusiveTo,
 	}, nil
 }
@@ -538,11 +580,11 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
-func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([]genParam, error) {
+func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([]genParam, []qualifiedID, error) {
 
 	params, err := m.ResolveParamList(g.winmdCtx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// the signature contains the parameter
@@ -550,39 +592,43 @@ func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([
 	r := m.Signature.Reader()
 	mr, err := r.Method(g.winmdCtx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	genParams := []genParam{}
+	var reqImports []qualifiedID
 	for i, e := range mr.Params {
+		elType, requiredImports := g.elementType(e)
+		reqImports = append(reqImports, requiredImports...)
 		genParams = append(genParams, genParam{
 			Name: getParamName(params, uint16(i+1)),
-			Type: g.elementType(e, typePackage(typeDef.TypeNamespace, typeDef.TypeName)),
+			Type: elType,
 		})
 	}
 
-	return genParams, nil
+	return genParams, reqImports, nil
 }
 
-func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef) (*genParam, error) {
+func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef) (*genParam, []qualifiedID, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := m.Signature.Reader()
 	methodSignature, err := r.Method(g.winmdCtx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// ignore void types
 	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_VOID {
-		return nil, nil
+		return nil, nil, nil
 	}
 
+	elType, reqImports := g.elementType(methodSignature.Return)
 	return &genParam{
 		Name:         "",
-		Type:         g.elementType(methodSignature.Return, typePackage(typeDef.TypeNamespace, typeDef.TypeName)),
+		Type:         elType,
 		DefaultValue: g.elementDefaultValue(methodSignature.Return),
-	}, nil
+	}, reqImports, nil
 }
 
 func getParamName(params []types.Param, i uint16) string {
@@ -594,58 +640,50 @@ func getParamName(params []types.Param, i uint16) string {
 	return "__ERROR__"
 }
 
-func (g *generator) elementType(e types.Element, currentPkg string) string {
+func (g *generator) elementType(e types.Element) (string, []qualifiedID) {
+	var elType string
+	var requiredImports []qualifiedID
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
-		return "bool"
+		elType = "bool"
 	case types.ELEMENT_TYPE_CHAR:
-		return "byte"
+		elType = "byte"
 	case types.ELEMENT_TYPE_I1:
-		return "int8"
+		elType = "int8"
 	case types.ELEMENT_TYPE_U1:
-		return "uint8"
+		elType = "uint8"
 	case types.ELEMENT_TYPE_I2:
-		return "int16"
+		elType = "int16"
 	case types.ELEMENT_TYPE_U2:
-		return "uint16"
+		elType = "uint16"
 	case types.ELEMENT_TYPE_I4:
-		return "int32"
+		elType = "int32"
 	case types.ELEMENT_TYPE_U4:
-		return "uint32"
+		elType = "uint32"
 	case types.ELEMENT_TYPE_I8:
-		return "int64"
+		elType = "int64"
 	case types.ELEMENT_TYPE_U8:
-		return "uint64"
+		elType = "uint64"
 	case types.ELEMENT_TYPE_R4:
-		return "float32"
+		elType = "float32"
 	case types.ELEMENT_TYPE_R8:
-		return "float64"
+		elType = "float64"
 	case types.ELEMENT_TYPE_STRING:
-		return "string"
+		elType = "string"
 	case types.ELEMENT_TYPE_CLASS:
 		// return class name
 		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
-			return "__ERROR_ELEMENT_TYPE_CLASS__"
+			elType = "__ERROR_ELEMENT_TYPE_CLASS__"
+		} else {
+			requiredImports = []qualifiedID{{namespace, name}}
+			elType = "*" + name
 		}
-
-		// this may be the runtime class itself, but we only know the interfaces
-		// TODO: make this smarter
-		if !strings.HasPrefix(name, "I") {
-			name = "I" + name
-		}
-
-		// name is always an interface, so we need to remove the initial I
-		typePkg := typePackage(namespace, name[1:])
-		if currentPkg != typePkg {
-			g.addImportFor(namespace, name[1:])
-			name = typePkg + "." + name
-		}
-
-		return "*" + name
 	default:
-		return "__ERROR_" + e.Type.Kind.String() + "__"
+		elType = "__ERROR_" + e.Type.Kind.String() + "__"
 	}
+
+	return elType, requiredImports
 }
 
 func (g *generator) elementDefaultValue(e types.Element) string {
