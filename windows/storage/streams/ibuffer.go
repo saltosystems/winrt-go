@@ -6,9 +6,10 @@
 package streams
 
 import (
-	"github.com/go-ole/go-ole"
 	"syscall"
 	"unsafe"
+
+	"github.com/go-ole/go-ole"
 )
 
 const GUIDIBuffer string = "905a0fe0-bc53-11df-8c49-001e4fc686da"
