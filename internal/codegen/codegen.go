@@ -243,6 +243,7 @@ func (g *generator) createGenInterface(typeDef types.TypeDef) (*genInterface, er
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
+	exclusiveInterfaces := make([]*types.TypeDef, 0)
 
 	// get all the interfaces this class implements
 	interfaces, err := g.getImplementedInterfaces(typeDef)
@@ -260,52 +261,58 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 			pkg = typePackage(ifaceNS, ifaceName) + "."
 			g.addImportFor(ifaceNS, ifaceName)
 		}
-
 		implInterfaces = append(implInterfaces, pkg+ifaceName)
 	}
 
-	// static interfaces
-	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
-
 	// Runtime classes have zero or more StaticAttribute custom attributes
+	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
 	staticAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeStaticAttribute)
 	staticInterfaces := make([]genInterface, 0, len(staticAttributeBlobs))
 	for _, blob := range staticAttributeBlobs {
 		class := extractClassFromBlob(blob)
+		_ = level.Debug(g.logger).Log("msg", "found static interface", "class", class)
 		staticClass, err := g.typeDefByName(class)
 		if err != nil {
 			_ = level.Error(g.logger).Log("msg", "static class defined in StaticAttribute not found", "class", class, "err", err)
 			return nil, err
 		}
 
-		iface, err := g.createGenInterface(*staticClass)
-		if err != nil {
-			return nil, err
-		}
-		// if all methods from the statics interface have been filtered, then we can skip it
-		for _, m := range iface.Funcs {
-			if m.Implement {
-				// we only add the interface if it has at least one implemented method
-				staticInterfaces = append(staticInterfaces, *iface)
-				break
-			}
-		}
+		exclusiveInterfaces = append(exclusiveInterfaces, staticClass)
 	}
+
 	// Runtime classes have zero or more ActivatableAttribute custom attributes
+	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#activation
 	activatableAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeActivatableAttribute)
+	hasEmptyConstructor := false
 	for _, blob := range activatableAttributeBlobs {
-		class := extractClassFromBlob(blob)
-		activatableClass, err := g.typeDefByName(class)
-		if err != nil {
-			_ = level.Error(g.logger).Log("msg", "activatable class defined in ActivatableAttribute not found", "class", class, "err", err)
-			return nil, err
+		// check for empty constructor
+		if activatableAttrIsEmpty(blob) {
+			// this activatable attribute is empty, so the class has an empty constructor
+			hasEmptyConstructor = true
+			continue
 		}
 
-		iface, err := g.createGenInterface(*activatableClass)
+		// check for an activation interface
+		class := extractClassFromBlob(blob)
+		_ = level.Debug(g.logger).Log("msg", "found activatable interface", "class", class)
+		activatableClass, err := g.typeDefByName(class)
+		if err != nil {
+			// the activatable class may be empty in some cases, example:
+			// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/winrt/windows.devices.bluetooth.advertisement.idl#L518
+			_ = level.Error(g.logger).Log("msg", "activatable class defined in ActivatableAttribute not found", "class", class, "err", err)
+
+			// so do not fail
+			continue
+		}
+		exclusiveInterfaces = append(exclusiveInterfaces, activatableClass)
+	}
+
+	// generate exclusive interfaces
+	for _, iface := range exclusiveInterfaces {
+		iface, err := g.createGenInterface(*iface)
 		if err != nil {
 			return nil, err
 		}
-		// the logic to generate activatable interfaces and the static interfaces is the same
 		// if all methods from the statics interface have been filtered, then we can skip it
 		for _, m := range iface.Funcs {
 			if m.Implement {
@@ -317,9 +324,11 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 	}
 
 	return &genClass{
-		Name:             typeDefGoName(typeDef),
-		ImplInterfaces:   implInterfaces,
-		StaticInterfaces: staticInterfaces,
+		Name:                typeDefGoName(typeDef),
+		FullyQualifiedName:  typeDef.TypeNamespace + "." + typeDef.TypeName,
+		ImplInterfaces:      implInterfaces,
+		StaticInterfaces:    staticInterfaces,
+		HasEmptyConstructor: hasEmptyConstructor,
 	}, nil
 }
 
@@ -329,6 +338,13 @@ func typeDefGoName(typeDef types.TypeDef) string {
 		name = strings.ToLower(name[0:1]) + name[1:]
 	}
 	return name
+}
+
+func activatableAttrIsEmpty(blob []byte) bool {
+	// the activatable attribute is empty if the size is 0
+	// 01 00 - header
+	// 00 - size
+	return len(blob) >= 3 && blob[0] == 0x01 && blob[1] == 0x00 && blob[2] == 0x00
 }
 
 func extractClassFromBlob(blob []byte) string {
