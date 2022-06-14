@@ -20,3 +20,7 @@ import (
 {{range .Classes}}
 	{{template "class.tmpl" .}}
 {{end}}
+
+{{range .Enums}}
+	{{template "enum.tmpl" .}}
+{{end}}
