@@ -58,6 +58,21 @@ func (v *iBluetoothLEAdvertisementWatcher) VTable() *iBluetoothLEAdvertisementWa
 	return (*iBluetoothLEAdvertisementWatcherVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
+func (v *iBluetoothLEAdvertisementWatcher) GetStatus() (BluetoothLEAdvertisementWatcherStatus, error) {
+	var out BluetoothLEAdvertisementWatcherStatus
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetStatus,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEAdvertisementWatcherStatus
+	)
+
+	if hr != 0 {
+		return BluetoothLEAdvertisementWatcherStatusCreated, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
 func (v *iBluetoothLEAdvertisementWatcher) Start() error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().Start,

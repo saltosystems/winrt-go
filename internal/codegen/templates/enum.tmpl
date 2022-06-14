@@ -1,0 +1,5 @@
+type {{.Name}} {{.Type}}
+
+const ({{range .Values}}
+    {{.Name}} {{$.Name}} = {{.Value}}{{end}}
+)

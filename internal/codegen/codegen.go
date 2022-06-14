@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/go-kit/log"
@@ -165,16 +166,6 @@ func (g *generator) generate(typeDef types.TypeDef) error {
 	return err
 }
 
-func typeToFolder(ns, name string) string {
-	fullName := ns
-	return strings.ToLower(strings.Replace(fullName, ".", "/", -1))
-}
-
-func typePackage(ns, name string) string {
-	sns := strings.Split(ns, ".")
-	return strings.ToLower(sns[len(sns)-1])
-}
-
 func parseWinMDFile(path string) (*types.Context, error) {
 	f, err := winmd.Open(path)
 	if err != nil {
@@ -190,7 +181,8 @@ func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
 	}
 
-	if typeDef.Flags.Interface() {
+	switch {
+	case g.isInterface(typeDef):
 		if err := g.validateInterface(typeDef); err != nil {
 			return err
 		}
@@ -200,14 +192,34 @@ func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 			return err
 		}
 		g.genData.Interfaces = append(g.genData.Interfaces, *iface)
-	} else {
+	case g.isEnum(typeDef):
+		enum, err := g.createGenEnum(typeDef)
+		if err != nil {
+			return err
+		}
+		g.genData.Enums = append(g.genData.Enums, *enum)
+	default:
 		class, err := g.createGenClass(typeDef)
 		if err != nil {
 			return err
 		}
 		g.genData.Classes = append(g.genData.Classes, *class)
 	}
+
 	return nil
+}
+
+func (g *generator) isInterface(typeDef types.TypeDef) bool {
+	return typeDef.Flags.Interface()
+}
+
+func (g *generator) isEnum(typeDef types.TypeDef) bool {
+	ns, name, err := g.winmdCtx.ResolveTypeDefOrRefName(typeDef.Extends)
+	if err != nil {
+		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+	return ns == "System" && name == "Enum"
 }
 
 func (g *generator) validateInterface(typeDef types.TypeDef) error {
@@ -359,6 +371,95 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 		ExclusiveInterfaces: exclusiveGenInterfaces,
 		HasEmptyConstructor: hasEmptyConstructor,
 	}, nil
+}
+
+// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums
+func (g *generator) createGenEnum(typeDef types.TypeDef) (*genEnum, error) {
+	fields, err := typeDef.ResolveFieldList(g.winmdCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	// An enum has a single instance field that specifies the underlying integer type for the enum,
+	// as well as zero or more static fields; one for each enum value defined by the enum type.
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("enum %s has no fields", typeDef.TypeName)
+	}
+
+	// the first row should be the underlying integer type of the enum. It must have the following flags:
+	if !(fields[0].Flags.Private() && fields[0].Flags.SpecialName() && fields[0].Flags.RTSpecialName()) {
+		return nil, fmt.Errorf("enum %s has more than one instance field, expected 1", typeDef.TypeNamespace+"."+typeDef.TypeName)
+	}
+
+	fieldSig, err := fields[0].Signature.Reader().Field(g.winmdCtx)
+	if err != nil {
+		return nil, err
+	}
+	elType, err := g.elementType(fieldSig.Field)
+	if err != nil {
+		return nil, err
+	}
+	// this will always be a primitive type, so we can just use the name
+	enumType := elType.Name
+
+	// After the enum value definition comes a field definition for each of the values in the enumeration.
+	enumValues := make([]genEnumValue, 0, len(fields[1:]))
+	for i, field := range fields[1:] {
+		if !(field.Flags.Public() && field.Flags.Static() && field.Flags.Literal() && field.Flags.HasDefault()) {
+			return nil,
+				fmt.Errorf(
+					"enum %s field value does not comply with the spec. Checkout https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums",
+					typeDef.TypeNamespace+"."+typeDef.TypeName,
+				)
+		}
+
+		var fieldIndex uint32 = typeDef.FieldList.Start() + 1 + uint32(i)
+		enumRawValue, err := g.getValueForEnumField(fieldIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		enumValues = append(enumValues, genEnumValue{
+			Name:  enumName(typeDef.TypeName, field.Name),
+			Value: enumRawValue,
+		})
+	}
+
+	return &genEnum{
+		Name:   typeDefGoName(typeDef),
+		Type:   enumType,
+		Values: enumValues,
+	}, nil
+}
+
+func (g *generator) getValueForEnumField(fieldIndex uint32) (string, error) {
+	// For each Enum value definition, there is a corresponding row in the Constant table to store the integer value for the enum value.
+	tableConstants := g.winmdCtx.Table(md.Constant)
+	for i := uint32(0); i < tableConstants.RowCount(); i++ {
+		var constant types.Constant
+		if err := constant.FromRow(tableConstants.Row(i)); err != nil {
+			return "", err
+		}
+
+		if t, _ := constant.Parent.Table(); t != md.Field {
+			continue
+		}
+
+		// does the blob belong to the field we're looking for?
+		// The parent is an index into the field table that holds the associated enum value record
+		if constant.Parent.TableIndex() != fieldIndex {
+			continue
+		}
+
+		// The value is a blob that we need to read as little endian
+		var blobIndex uint32
+		for i, b := range constant.Value {
+			blobIndex += uint32(b) << (i * 8)
+		}
+		return strconv.Itoa(int(blobIndex)), nil
+	}
+
+	return "", fmt.Errorf("no value found for field %d", fieldIndex)
 }
 
 func (g *generator) interfaceIsExclusiveTo(typeDef types.TypeDef) (string, bool) {
@@ -556,31 +657,51 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef, requiresActivation bool) 
 }
 
 func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
-	params, reqInImports, err := g.getInParameters(typeDef, m)
-	if err != nil {
-		return nil, err
-	}
-
-	retParam, reqOutImports, err := g.getReturnParameters(typeDef, m)
-	if err != nil {
-		return nil, err
-	}
-
 	// add the type imports to the top of the file
 	// only if the method is going to be implemented
 	implement := g.shouldImplementMethod(m)
+	var params []*genParam
+	var retParam *genParam
 	if implement {
+		paramsCandidate, err := g.getInParameters(typeDef, m)
+		if err != nil {
+			return nil, err
+		}
+		params = paramsCandidate
+
+		retParamCandidate, err := g.getReturnParameters(typeDef, m)
+		if err != nil {
+			return nil, err
+		}
+		retParam = retParamCandidate
+
 		curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
 
-		var allImports []qualifiedID
-		allImports = append(allImports, reqInImports...)
-		allImports = append(allImports, reqOutImports...)
+		implementedParams := make([]*genParam, 0)
+		implementedParams = append(implementedParams, params...)
+		if retParam != nil {
+			implementedParams = append(implementedParams, retParam)
+		}
 
-		for _, i := range allImports {
-			pkg := typePackage(i.Namespace, i.Name)
-			if curPackage != pkg {
+		// for each param
+		for _, p := range implementedParams {
+			// compute the reference in the code (with vs without package, pointer, ...)
+			if p.genType != nil {
+				p.Type = p.genType.GoParamString(curPackage)
+			}
+			if p.genDefaultValue != nil {
+				p.DefaultValue = p.genDefaultValue.GoParamString(curPackage)
+			}
+
+			if p.genType.Namespace == "" {
+				// no import required
+				continue
+			}
+
+			typePkg := typePackage(p.genType.Namespace, p.genType.Name)
+			if curPackage != typePkg {
 				// imports are addded globally
-				g.addImportFor(i.Namespace, i.Name)
+				g.addImportFor(p.genType.Namespace, p.genType.Name)
 			}
 		}
 	}
@@ -638,11 +759,11 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
-func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([]genParam, []qualifiedID, error) {
+func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([]*genParam, error) {
 
 	params, err := m.ResolveParamList(g.winmdCtx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// the signature contains the parameter
@@ -650,43 +771,56 @@ func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([
 	r := m.Signature.Reader()
 	mr, err := r.Method(g.winmdCtx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	genParams := []genParam{}
-	var reqImports []qualifiedID
+	genParams := make([]*genParam, 0)
 	for i, e := range mr.Params {
-		elType, requiredImports := g.elementType(e)
-		reqImports = append(reqImports, requiredImports...)
-		genParams = append(genParams, genParam{
-			Name: getParamName(params, uint16(i+1)),
-			Type: elType,
+		elType, err := g.elementType(e)
+		if err != nil {
+			return nil, err
+		}
+		genParams = append(genParams, &genParam{
+			Name:    getParamName(params, uint16(i+1)),
+			Type:    "",
+			genType: elType,
 		})
 	}
 
-	return genParams, reqImports, nil
+	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef) (*genParam, []qualifiedID, error) {
+func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef) (*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := m.Signature.Reader()
 	methodSignature, err := r.Method(g.winmdCtx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// ignore void types
 	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_VOID {
-		return nil, nil, nil
+		return nil, nil
 	}
 
-	elType, reqImports := g.elementType(methodSignature.Return)
+	elType, err := g.elementType(methodSignature.Return)
+	if err != nil {
+		return nil, err
+	}
+
+	defValue, err := g.elementDefaultValue(methodSignature.Return)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genParam{
-		Name:         "",
-		Type:         elType,
-		DefaultValue: g.elementDefaultValue(methodSignature.Return),
-	}, reqImports, nil
+		Name:            "",
+		Type:            "",
+		genType:         elType,
+		DefaultValue:    "",
+		genDefaultValue: defValue,
+	}, nil
 }
 
 func getParamName(params []types.Param, i uint16) string {
@@ -698,56 +832,120 @@ func getParamName(params []types.Param, i uint16) string {
 	return "__ERROR__"
 }
 
-func (g *generator) elementType(e types.Element) (string, []qualifiedID) {
-	var elType string
-	var requiredImports []qualifiedID
+func (g *generator) elementType(e types.Element) (*genParamReference, error) {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
-		elType = "bool"
+		return &genParamReference{
+			Name:      "bool",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_CHAR:
-		elType = "byte"
+		return &genParamReference{
+			Name:      "byte",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_I1:
-		elType = "int8"
+		return &genParamReference{
+			Name:      "int8",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_U1:
-		elType = "uint8"
+		return &genParamReference{
+			Name:      "uint8",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_I2:
-		elType = "int16"
+		return &genParamReference{
+			Name:      "int16",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_U2:
-		elType = "uint16"
+		return &genParamReference{
+			Name:      "uint16",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_I4:
-		elType = "int32"
+		return &genParamReference{
+			Name:      "int32",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_U4:
-		elType = "uint32"
+		return &genParamReference{
+			Name:      "uint32",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_I8:
-		elType = "int64"
+		return &genParamReference{
+			Name:      "int64",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_U8:
-		elType = "uint64"
+		return &genParamReference{
+			Name:      "uint64",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_R4:
-		elType = "float32"
+		return &genParamReference{
+			Name:      "float32",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_R8:
-		elType = "float64"
+		return &genParamReference{
+			Name:      "float64",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_STRING:
-		elType = "string"
+		return &genParamReference{
+			Name:      "string",
+			Namespace: "",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_CLASS:
 		// return class name
 		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
-			elType = "__ERROR_ELEMENT_TYPE_CLASS__"
-		} else {
-			requiredImports = []qualifiedID{{namespace, name}}
-			elType = "*" + name
+			return nil, err
 		}
+		return &genParamReference{
+			Name:      name,
+			Namespace: namespace,
+			IsPointer: true,
+		}, nil
+	case types.ELEMENT_TYPE_VALUETYPE:
+		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		if err != nil {
+			return nil, err
+		}
+		return &genParamReference{
+			Name:      name,
+			Namespace: namespace,
+			IsPointer: false,
+		}, nil
 	default:
-		elType = "__ERROR_" + e.Type.Kind.String() + "__"
+		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
 	}
-
-	return elType, requiredImports
 }
 
-func (g *generator) elementDefaultValue(e types.Element) string {
+func (g *generator) elementDefaultValue(e types.Element) (*genParamReference, error) {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
-		return "false"
+		return &genParamReference{
+			Namespace: "",
+			Name:      "false",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_CHAR:
 		fallthrough
 	case types.ELEMENT_TYPE_I1:
@@ -765,16 +963,67 @@ func (g *generator) elementDefaultValue(e types.Element) string {
 	case types.ELEMENT_TYPE_I8:
 		fallthrough
 	case types.ELEMENT_TYPE_U8:
-		return "0"
+		return &genParamReference{
+			Namespace: "",
+			Name:      "0",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_R4:
 		fallthrough
 	case types.ELEMENT_TYPE_R8:
-		return "0.0"
+		return &genParamReference{
+			Namespace: "",
+			Name:      "0.0",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_STRING:
-		return "\"\""
+		return &genParamReference{
+			Namespace: "",
+			Name:      "\"\"",
+			IsPointer: false,
+		}, nil
 	case types.ELEMENT_TYPE_CLASS:
-		return "nil"
+		return &genParamReference{
+			Namespace: "",
+			Name:      "nil",
+			IsPointer: false,
+		}, nil
+	case types.ELEMENT_TYPE_VALUETYPE:
+		// we need to get the underlying type (enum, struct, etc...)
+		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		if err != nil {
+			return nil, err
+		}
+		elementTypeDef, err := g.typeDefByName(namespace + "." + name)
+		if err != nil {
+			return nil, err
+		}
+
+		if g.isEnum(*elementTypeDef) {
+			// return the first enum value
+			fields, err := elementTypeDef.ResolveFieldList(g.winmdCtx)
+			if err != nil {
+				return nil, err
+			}
+			// the first field defines the enum type, the second is the first value
+			if len(fields) < 2 {
+				return nil, fmt.Errorf("enum %v has no fields", namespace+"."+name)
+			}
+
+			return &genParamReference{
+				Namespace: elementTypeDef.TypeNamespace,
+				Name:      enumName(elementTypeDef.TypeName, fields[1].Name),
+				IsPointer: false,
+			}, nil
+		}
+
+		// TODO: handle structs, etc...
+		return &genParamReference{
+			Namespace: "",
+			Name:      "nil",
+			IsPointer: false,
+		}, nil
 	default:
-		return "__ERROR_" + e.Type.Kind.String() + "__"
+		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
 	}
 }

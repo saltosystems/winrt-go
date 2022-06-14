@@ -15,6 +15,7 @@ type genData struct {
 	Package    string
 	Imports    []string
 	Classes    []genClass
+	Enums      []genEnum
 	Interfaces []genInterface
 }
 
@@ -32,11 +33,21 @@ type genClass struct {
 	HasEmptyConstructor bool
 }
 
+type genEnum struct {
+	Name   string
+	Type   string
+	Values []genEnumValue
+}
+type genEnumValue struct {
+	Name  string
+	Value string
+}
+
 type genFunc struct {
 	Name        string
 	Implement   bool
 	FuncOwner   string
-	InParams    []genParam
+	InParams    []*genParam
 	ReturnParam *genParam // this may be nil
 
 	// ExclusiveTo is the name of the class that this function is exclusive to.
@@ -50,6 +61,31 @@ type genParam struct {
 	Name         string
 	Type         string
 	DefaultValue string
+
+	genType         *genParamReference
+	genDefaultValue *genParamReference
+}
+
+type genParamReference struct {
+	Namespace string
+	Name      string
+	IsPointer bool
+}
+
+func (g genParamReference) GoParamString(callerPackage string) string {
+	name := ""
+	pkg := typePackage(g.Namespace, g.Name)
+	if g.Namespace == "" || callerPackage == pkg {
+		name = g.Name
+	} else {
+		name = g.Namespace + "." + g.Name
+	}
+
+	if g.IsPointer {
+		name = "*" + name
+	}
+
+	return name
 }
 
 //go:embed templates/*
@@ -80,4 +116,18 @@ func funcName(m genFunc) string {
 		return strings.Replace(m.Name, "remove_", "Remove", 1)
 	}
 	return m.Name
+}
+
+func typeToFolder(ns, name string) string {
+	fullName := ns
+	return strings.ToLower(strings.Replace(fullName, ".", "/", -1))
+}
+
+func typePackage(ns, name string) string {
+	sns := strings.Split(ns, ".")
+	return strings.ToLower(sns[len(sns)-1])
+}
+
+func enumName(typeName string, enumName string) string {
+	return typeName + enumName
 }
