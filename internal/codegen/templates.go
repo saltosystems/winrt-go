@@ -6,6 +6,11 @@ import (
 	"text/template"
 )
 
+type qualifiedID struct {
+	Namespace string
+	Name      string
+}
+
 type genData struct {
 	Package    string
 	Imports    []string
@@ -23,7 +28,7 @@ type genClass struct {
 	Name                string
 	FullyQualifiedName  string
 	ImplInterfaces      []string
-	StaticInterfaces    []genInterface
+	ExclusiveInterfaces []genInterface
 	HasEmptyConstructor bool
 }
 
@@ -37,6 +42,8 @@ type genFunc struct {
 	// ExclusiveTo is the name of the class that this function is exclusive to.
 	// The funcion will be called statically using the RoGetActivationFactory function.
 	ExclusiveTo string
+
+	RequiresActivation bool
 }
 
 type genParam struct {
@@ -67,6 +74,10 @@ func funcName(m genFunc) string {
 		return strings.Replace(m.Name, "get_", "Get", 1)
 	case strings.HasPrefix(m.Name, "put_"):
 		return strings.Replace(m.Name, "put_", "Set", 1)
+	case strings.HasPrefix(m.Name, "add_"):
+		return strings.Replace(m.Name, "add_", "Add", 1)
+	case strings.HasPrefix(m.Name, "remove_"):
+		return strings.Replace(m.Name, "remove_", "Remove", 1)
 	}
 	return m.Name
 }
