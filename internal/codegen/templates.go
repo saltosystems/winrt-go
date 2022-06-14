@@ -4,8 +4,6 @@ import (
 	"embed"
 	"strings"
 	"text/template"
-
-	"github.com/tdakkota/win32metadata/types"
 )
 
 type genData struct {
@@ -28,14 +26,15 @@ type genClass struct {
 }
 
 type genFunc struct {
-	Name      string
-	Implement bool
-
+	Name        string
+	Implement   bool
 	FuncOwner   string
 	InParams    []genParam
 	ReturnParam *genParam // this may be nil
 
-	ExclusiveTo *types.TypeDef
+	// ExclusiveTo is the name of the class that this function is exclusive to.
+	// The funcion will be called statically using the RoGetActivationFactory function.
+	ExclusiveTo string
 }
 
 type genParam struct {

@@ -1,5 +1,5 @@
-{{if .ExclusiveTo}}{{/*Activate class*/}}
-inspectable, err := ole.RoGetActivationFactory("{{.ExclusiveTo.TypeNamespace}}.{{.ExclusiveTo.TypeName}}", ole.NewGUID(GUID{{.FuncOwner}}))
+{{if .ExclusiveTo}}{{/*Activate class*/ -}}
+inspectable, err := ole.RoGetActivationFactory("{{.ExclusiveTo}}", ole.NewGUID(GUID{{.FuncOwner}}))
 if err != nil {
     return {{if .ReturnParam }}{{.ReturnParam.DefaultValue}}, {{end}}err
 }
@@ -10,14 +10,15 @@ v := (*{{.FuncOwner}})(unsafe.Pointer(inspectable))
 {{end -}}
 hr, _, _ := syscall.SyscallN(
     v.VTable().{{funcName .}},
-    // this
-    uintptr(unsafe.Pointer(v)),
+    {{- if .ExclusiveTo}}
+        0, // this is a static func, so there's no this
+    {{else}}
+        uintptr(unsafe.Pointer(v)), // this
+    {{end -}}
     {{range .InParams -}}
-        // in params
         uintptr({{.Name}}),   // in {{.Name}}
     {{end -}}
     {{if .ReturnParam -}}
-        // out params
         uintptr(unsafe.Pointer(&out)), // out {{.ReturnParam.Type}}
     {{end}})
 
