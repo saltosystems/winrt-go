@@ -30,9 +30,7 @@ func (v *IBuffer) VTable() *IBufferVtbl {
 }
 
 func (v *IBuffer) GetCapacity() (uint32, error) {
-
 	var out uint32
-
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetCapacity,
 		// this
@@ -49,9 +47,7 @@ func (v *IBuffer) GetCapacity() (uint32, error) {
 }
 
 func (v *IBuffer) GetLength() (uint32, error) {
-
 	var out uint32
-
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetLength,
 		// this
@@ -68,7 +64,6 @@ func (v *IBuffer) GetLength() (uint32, error) {
 }
 
 func (v *IBuffer) SetLength(value uint32) error {
-
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetLength,
 		// this

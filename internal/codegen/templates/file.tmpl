@@ -13,6 +13,10 @@ import (
 	{{end}}
 )
 
-{{range .Types}}
-{{template "type.tmpl" .}}
+{{range .Interfaces}}
+	{{template "interface.tmpl" .}}
+{{end}}
+
+{{range .Classes}}
+	{{template "class.tmpl" .}}
 {{end}}

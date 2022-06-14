@@ -1,0 +1,9 @@
+type {{.Name}} struct {
+    {{range .ImplInterfaces}}
+        {{.}}
+    {{end}}
+}
+
+{{range .StaticInterfaces}}
+    {{ template "interface.tmpl" .}}
+{{end}}

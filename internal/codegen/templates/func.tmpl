@@ -1,5 +1,5 @@
 {{if .Implement}}
-    func {{if .FuncOwner}}
+    func {{if and .FuncOwner (not .ExclusiveTo)}}
         (v *{{.FuncOwner}})
     {{- end -}}
 

@@ -9,32 +9,33 @@ import (
 )
 
 type genData struct {
-	Package string
-	Imports []string
-	Types   []genType
+	Package    string
+	Imports    []string
+	Classes    []genClass
+	Interfaces []genInterface
 }
 
-type genType struct {
+type genInterface struct {
 	Name  string
 	GUID  string
 	Funcs []genFunc
 }
 
-type genFunc struct {
-	Name          string
-	IsConstructor bool
+type genClass struct {
+	Name             string
+	ImplInterfaces   []string
+	StaticInterfaces []genInterface
+}
 
+type genFunc struct {
+	Name      string
 	Implement bool
 
-	FuncOwner      string
-	ParentType     types.TypeDef
-	ParentTypeGUID string
-	RuntimeClass   types.TypeDef
-
-	Signature types.Blob
-
+	FuncOwner   string
 	InParams    []genParam
 	ReturnParam *genParam // this may be nil
+
+	ExclusiveTo *types.TypeDef
 }
 
 type genParam struct {
