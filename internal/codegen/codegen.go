@@ -30,11 +30,6 @@ func (e *classNotFoundError) Error() string {
 	return fmt.Sprintf("class %s was not found", e.class)
 }
 
-type qualifiedID struct {
-	Namespace string
-	Name      string
-}
-
 type generator struct {
 	class        string
 	methodFilter *MethodFilter
@@ -191,7 +186,7 @@ func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 			return err
 		}
 
-		iface, err := g.createGenInterface(typeDef)
+		iface, err := g.createGenInterface(typeDef, false)
 		if err != nil {
 			return err
 		}
@@ -220,10 +215,10 @@ func (g *generator) validateInterface(typeDef types.TypeDef) error {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
-func (g *generator) createGenInterface(typeDef types.TypeDef) (*genInterface, error) {
+func (g *generator) createGenInterface(typeDef types.TypeDef, requiresActivation bool) (*genInterface, error) {
 	// Any WinRT interface with public visibility must not have an ExclusiveToAttribute.
 
-	funcs, err := g.getGenFuncs(typeDef)
+	funcs, err := g.getGenFuncs(typeDef, requiresActivation)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +238,9 @@ func (g *generator) createGenInterface(typeDef types.TypeDef) (*genInterface, er
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
-	exclusiveInterfaces := make([]*types.TypeDef, 0)
+	exclusiveInterfaceTypes := make([]*types.TypeDef, 0)
+	// true => interface requires activation, false => interface is implemented by this class
+	activatedInterfaces := make(map[string]bool)
 
 	// get all the interfaces this class implements
 	interfaces, err := g.getImplementedInterfaces(typeDef)
@@ -252,22 +249,33 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 	}
 	implInterfaces := make([]string, 0, len(interfaces))
 	for _, iface := range interfaces {
+		// the interface needs to be implemented by this class
 		pkg := ""
-		ifaceNS, ifaceName, err := g.winmdCtx.ResolveTypeDefOrRefName(iface)
+		if typeDef.TypeNamespace != iface.Namespace {
+			pkg = typePackage(iface.Namespace, iface.Name) + "."
+			g.addImportFor(iface.Namespace, iface.Name)
+		}
+
+		ifaceTypeDef, err := g.typeDefByName(iface.Namespace + "." + iface.Name)
 		if err != nil {
 			return nil, err
 		}
-		if typeDef.TypeNamespace != ifaceNS {
-			pkg = typePackage(ifaceNS, ifaceName) + "."
-			g.addImportFor(ifaceNS, ifaceName)
+		implInterfaces = append(implInterfaces, pkg+typeDefGoName(*ifaceTypeDef))
+
+		// The interface we implement may be exclusive to this class, in which case we need to generate it.
+		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
+		// a TypeRef, the class should be found using its name.
+		if td, err := g.typeDefByName(iface.Namespace + "." + iface.Name); err == nil {
+			if _, ok := g.interfaceIsExclusiveTo(*td); ok {
+				exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, td)
+				activatedInterfaces[td.TypeNamespace+"."+td.TypeName] = false // implemented interfaces do not require activation
+			}
 		}
-		implInterfaces = append(implInterfaces, pkg+ifaceName)
 	}
 
 	// Runtime classes have zero or more StaticAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
 	staticAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeStaticAttribute)
-	staticInterfaces := make([]genInterface, 0, len(staticAttributeBlobs))
 	for _, blob := range staticAttributeBlobs {
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found static interface", "class", class)
@@ -277,7 +285,8 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 			return nil, err
 		}
 
-		exclusiveInterfaces = append(exclusiveInterfaces, staticClass)
+		exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, staticClass)
+		activatedInterfaces[staticClass.TypeNamespace+"."+staticClass.TypeName] = true // static interfaces require activation
 	}
 
 	// Runtime classes have zero or more ActivatableAttribute custom attributes
@@ -304,22 +313,33 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 			// so do not fail
 			continue
 		}
-		exclusiveInterfaces = append(exclusiveInterfaces, activatableClass)
+		exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, activatableClass)
+		activatedInterfaces[activatableClass.TypeNamespace+"."+activatableClass.TypeName] = true // activatable interfaces require activation
 	}
 
 	// generate exclusive interfaces
-	for _, iface := range exclusiveInterfaces {
-		iface, err := g.createGenInterface(*iface)
+	exclusiveGenInterfaces := make([]genInterface, 0)
+	for _, iface := range exclusiveInterfaceTypes {
+		requiresActivation := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
+		isExtendedInterface := !requiresActivation
+
+		ifaceGen, err := g.createGenInterface(*iface, requiresActivation)
 		if err != nil {
 			return nil, err
 		}
-		// if all methods from the statics interface have been filtered, then we can skip it
-		for _, m := range iface.Funcs {
+
+		// if all methods from the exclusive interface have been filtered, and the interface
+		// is an activated interface, then we can skip it.
+		impl := false
+		for _, m := range ifaceGen.Funcs {
 			if m.Implement {
-				// we only add the interface if it has at least one implemented method
-				staticInterfaces = append(staticInterfaces, *iface)
-				break
+				impl = true
 			}
+		}
+
+		// Extended interfaces always need to be generated (even if they have no method).
+		if isExtendedInterface || impl {
+			exclusiveGenInterfaces = append(exclusiveGenInterfaces, *ifaceGen)
 		}
 	}
 
@@ -327,9 +347,23 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 		Name:                typeDefGoName(typeDef),
 		FullyQualifiedName:  typeDef.TypeNamespace + "." + typeDef.TypeName,
 		ImplInterfaces:      implInterfaces,
-		StaticInterfaces:    staticInterfaces,
+		ExclusiveInterfaces: exclusiveGenInterfaces,
 		HasEmptyConstructor: hasEmptyConstructor,
 	}, nil
+}
+
+func (g *generator) interfaceIsExclusiveTo(typeDef types.TypeDef) (string, bool) {
+	exclusiveToBlob, err := g.getTypeDefAttributeWithType(typeDef, attributeTypeExclusiveTo)
+	// an error here is fine, we just won't have the ExclusiveTo attribute
+	if err != nil {
+		return "", false
+	}
+	exclusiveToClass := extractClassFromBlob(exclusiveToBlob)
+	exclusiveToTypeCandidate, err := g.typeDefByName(exclusiveToClass)
+	if err != nil {
+		return "", false
+	}
+	return exclusiveToTypeCandidate.TypeNamespace + "." + exclusiveToTypeCandidate.TypeName, true
 }
 
 func typeDefGoName(typeDef types.TypeDef) string {
@@ -446,8 +480,8 @@ func (g *generator) getTypeDefAttributesWithType(typeDef types.TypeDef, lookupAt
 	return result
 }
 
-func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.TypeDefOrRef, error) {
-	interfaces := make([]types.TypeDefOrRef, 0)
+func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]qualifiedID, error) {
+	interfaces := make([]qualifiedID, 0)
 
 	tableInterfaceImpl := g.winmdCtx.Table(md.InterfaceImpl)
 	for i := uint32(0); i < tableInterfaceImpl.RowCount(); i++ {
@@ -471,7 +505,12 @@ func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]types.Typ
 			continue
 		}
 
-		interfaces = append(interfaces, interfaceImpl.Interface)
+		ifaceNS, ifaceName, err := g.winmdCtx.ResolveTypeDefOrRefName(interfaceImpl.Interface)
+		if err != nil {
+			return nil, err
+		}
+
+		interfaces = append(interfaces, qualifiedID{Namespace: ifaceNS, Name: ifaceName})
 	}
 
 	return interfaces, nil
@@ -483,7 +522,7 @@ func (g *generator) addImportFor(ns, name string) {
 	g.genData.Imports = append(g.genData.Imports, i)
 }
 
-func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
+func (g *generator) getGenFuncs(typeDef types.TypeDef, requiresActivation bool) ([]genFunc, error) {
 	var genFuncs []genFunc
 
 	methods, err := typeDef.ResolveMethodList(g.winmdCtx)
@@ -491,20 +530,13 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
 		return nil, err
 	}
 
-	exclusiveToBlob, err := g.getTypeDefAttributeWithType(typeDef, attributeTypeExclusiveTo)
 	var exclusiveToType string
-	// an error here is fine, we just won't have the ExclusiveTo attribute
-	if err == nil {
-		exclusiveToClass := extractClassFromBlob(exclusiveToBlob)
-		exclusiveToTypeCandidate, err := g.typeDefByName(exclusiveToClass)
-		if err != nil {
-			return nil, err
-		}
-		exclusiveToType = exclusiveToTypeCandidate.TypeNamespace + "." + exclusiveToTypeCandidate.TypeName
+	if ex, ok := g.interfaceIsExclusiveTo(typeDef); ok {
+		exclusiveToType = ex
 	}
 
 	for _, m := range methods {
-		generatedFunc, err := g.genFuncFromMethod(typeDef, m, exclusiveToType)
+		generatedFunc, err := g.genFuncFromMethod(typeDef, m, exclusiveToType, requiresActivation)
 		if err != nil {
 			return nil, err
 		}
@@ -514,7 +546,7 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef) ([]genFunc, error) {
 	return genFuncs, nil
 }
 
-func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo string) (*genFunc, error) {
+func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
 	params, reqInImports, err := g.getInParameters(typeDef, m)
 	if err != nil {
 		return nil, err
@@ -545,12 +577,13 @@ func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, 
 	}
 
 	return &genFunc{
-		Name:        m.Name,
-		Implement:   implement,
-		InParams:    params,
-		ReturnParam: retParam,
-		FuncOwner:   typeDefGoName(typeDef),
-		ExclusiveTo: exclusiveTo,
+		Name:               m.Name,
+		Implement:          implement,
+		InParams:           params,
+		ReturnParam:        retParam,
+		FuncOwner:          typeDefGoName(typeDef),
+		ExclusiveTo:        exclusiveTo,
+		RequiresActivation: requiresActivation,
 	}, nil
 }
 

@@ -14,6 +14,6 @@ func New{{.Name}}() (*{{.Name}}, error) {
 }
 {{end}}
 
-{{range .StaticInterfaces}}
+{{range .ExclusiveInterfaces}}
     {{ template "interface.tmpl" .}}
 {{end}}
