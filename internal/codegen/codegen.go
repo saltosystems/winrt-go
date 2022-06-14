@@ -13,6 +13,7 @@ import (
 	"github.com/saltosystems/winrt-go/winmd"
 	"github.com/tdakkota/win32metadata/md"
 	"github.com/tdakkota/win32metadata/types"
+	"golang.org/x/tools/imports"
 )
 
 const (
@@ -142,11 +143,19 @@ func (g *generator) generate(typeDef types.TypeDef) error {
 	}
 	defer func() { _ = file.Close() }()
 
+	// use go imports to cleanup imports
+	goimported, err := imports.Process(filename, buf.Bytes(), nil)
+	if err != nil {
+		// write unimported  source code to file as a debugging mechanism
+		_, _ = file.Write(buf.Bytes())
+		return err
+	}
+
 	// format the output source code
-	formatted, err := format.Source(buf.Bytes())
+	formatted, err := format.Source(goimported)
 	if err != nil {
 		// write unformatted source code to file as a debugging mechanism
-		_, _ = file.Write(buf.Bytes())
+		_, _ = file.Write(goimported)
 		return err
 	}
 

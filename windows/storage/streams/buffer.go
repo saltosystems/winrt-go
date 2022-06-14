@@ -6,9 +6,10 @@
 package streams
 
 import (
-	"github.com/go-ole/go-ole"
 	"syscall"
 	"unsafe"
+
+	"github.com/go-ole/go-ole"
 )
 
 type Buffer struct {
