@@ -4,6 +4,16 @@ type {{.Name}} struct {
     {{end}}
 }
 
+{{if .HasEmptyConstructor}}
+func New{{.Name}}() (*{{.Name}}, error) {
+    inspectable, err := ole.RoActivateInstance("{{.FullyQualifiedName}}")
+    if err != nil {
+        return nil, err
+    }
+    return (*{{.Name}})(unsafe.Pointer(inspectable)), nil
+}
+{{end}}
+
 {{range .StaticInterfaces}}
     {{ template "interface.tmpl" .}}
 {{end}}

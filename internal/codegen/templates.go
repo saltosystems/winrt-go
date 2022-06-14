@@ -20,9 +20,11 @@ type genInterface struct {
 }
 
 type genClass struct {
-	Name             string
-	ImplInterfaces   []string
-	StaticInterfaces []genInterface
+	Name                string
+	FullyQualifiedName  string
+	ImplInterfaces      []string
+	StaticInterfaces    []genInterface
+	HasEmptyConstructor bool
 }
 
 type genFunc struct {
