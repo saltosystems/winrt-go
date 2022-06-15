@@ -16,7 +16,11 @@ hr, _, _ := syscall.SyscallN(
         uintptr(unsafe.Pointer(v)), // this
     {{end -}}
     {{range .InParams -}}
-        uintptr({{.Name}}),   // in {{.Name}}
+        {{- if .IsPointer -}}
+            uintptr(unsafe.Pointer({{.Name}})),   // in {{.Name}}
+        {{else -}}
+            uintptr(unsafe.Pointer(&{{.Name}})),   // in {{.Name}}
+        {{end -}}
     {{end -}}
     {{if .ReturnParam -}}
         uintptr(unsafe.Pointer(&out)), // out {{.ReturnParam.Type}}

@@ -6,7 +6,6 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -92,7 +91,7 @@ func (g *generator) generate(typeDef *metadata.TypeDef) error {
 
 	// create file & write contents
 	folder := typeToFolder(typeDef.TypeNamespace, typeDef.TypeName)
-	filename := folder + "/" + strings.ToLower(typeDef.TypeName) + ".go"
+	filename := folder + "/" + typeFilename(typeDef.TypeName)
 	err = os.MkdirAll(folder, os.ModePerm)
 	if err != nil {
 		return err
@@ -200,7 +199,7 @@ func (g *generator) createGenInterface(typeDef *metadata.TypeDef, requiresActiva
 	}
 
 	return &genInterface{
-		Name:  typeDefGoName(typeDef),
+		Name:  typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		GUID:  guid,
 		Funcs: funcs,
 	}, nil
@@ -230,7 +229,7 @@ func (g *generator) createGenClass(typeDef *metadata.TypeDef) (*genClass, error)
 		if err != nil {
 			return nil, err
 		}
-		implInterfaces = append(implInterfaces, pkg+typeDefGoName(ifaceTypeDef))
+		implInterfaces = append(implInterfaces, pkg+typeDefGoName(ifaceTypeDef.TypeName, ifaceTypeDef.Flags.Public()))
 
 		// The interface we implement may be exclusive to this class, in which case we need to generate it.
 		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
@@ -314,7 +313,7 @@ func (g *generator) createGenClass(typeDef *metadata.TypeDef) (*genClass, error)
 	}
 
 	return &genClass{
-		Name:                typeDefGoName(typeDef),
+		Name:                typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		FullyQualifiedName:  typeDef.TypeNamespace + "." + typeDef.TypeName,
 		ImplInterfaces:      implInterfaces,
 		ExclusiveInterfaces: exclusiveGenInterfaces,
@@ -375,7 +374,7 @@ func (g *generator) createGenEnum(typeDef *metadata.TypeDef) (*genEnum, error) {
 	}
 
 	return &genEnum{
-		Name:   typeDefGoName(typeDef),
+		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		Type:   enumType,
 		Values: enumValues,
 	}, nil
@@ -389,14 +388,6 @@ func (g *generator) interfaceIsExclusiveTo(typeDef *metadata.TypeDef) (string, b
 	}
 	exclusiveToClass := extractClassFromBlob(exclusiveToBlob)
 	return exclusiveToClass, true
-}
-
-func typeDefGoName(typeDef *metadata.TypeDef) string {
-	name := typeDef.TypeName
-	if !typeDef.Flags.Public() {
-		name = strings.ToLower(name[0:1]) + name[1:]
-	}
-	return name
 }
 
 func activatableAttrIsEmpty(blob []byte) bool {
@@ -508,7 +499,7 @@ func (g *generator) genFuncFromMethod(typeDef *metadata.TypeDef, methodDef *type
 		Implement:          implement,
 		InParams:           params,
 		ReturnParam:        retParam,
-		FuncOwner:          typeDefGoName(typeDef),
+		FuncOwner:          typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		ExclusiveTo:        exclusiveTo,
 		RequiresActivation: requiresActivation,
 	}, nil
@@ -578,9 +569,10 @@ func (g *generator) getInParameters(typeDef *metadata.TypeDef, methodDef *types.
 			return nil, err
 		}
 		genParams = append(genParams, &genParam{
-			Name:    getParamName(params, uint16(i+1)),
-			Type:    "",
-			genType: elType,
+			Name:      cleanReservedWords(getParamName(params, uint16(i+1))),
+			Type:      "",
+			IsPointer: elType.IsPointer,
+			genType:   elType,
 		})
 	}
 
@@ -614,6 +606,7 @@ func (g *generator) getReturnParameters(typeDef *metadata.TypeDef, methodDef *ty
 	return &genParam{
 		Name:            "",
 		Type:            "",
+		IsPointer:       elType.IsPointer,
 		genType:         elType,
 		DefaultValue:    "",
 		genDefaultValue: defValue,
@@ -709,6 +702,8 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			Namespace: "",
 			IsPointer: false,
 		}, nil
+	case types.ELEMENT_TYPE_GENERICINST:
+		fallthrough
 	case types.ELEMENT_TYPE_CLASS:
 		// return class name
 		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
@@ -779,6 +774,8 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 			Name:      "\"\"",
 			IsPointer: false,
 		}, nil
+	case types.ELEMENT_TYPE_GENERICINST:
+		fallthrough
 	case types.ELEMENT_TYPE_CLASS:
 		return &genParamReference{
 			Namespace: "",

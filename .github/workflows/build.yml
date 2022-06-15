@@ -10,7 +10,7 @@ on:
 
 jobs:
   # project should compile on non-windows platforms
-  build-ubuntu:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -35,7 +35,7 @@ jobs:
           docker stop winrt-go
 
   # but tests only run on windows
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
