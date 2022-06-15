@@ -55,6 +55,7 @@ type genFunc struct {
 type genParam struct {
 	Name         string
 	Type         string
+	IsPointer    bool
 	DefaultValue string
 
 	genType         *genParamReference
@@ -73,7 +74,7 @@ func (g genParamReference) GoParamString(callerPackage string) string {
 	if g.Namespace == "" || callerPackage == pkg {
 		name = g.Name
 	} else {
-		name = g.Namespace + "." + g.Name
+		name = pkg + "." + typeDefGoName(g.Name, true) // assume public
 	}
 
 	if g.IsPointer {
@@ -125,4 +126,37 @@ func typePackage(ns, name string) string {
 
 func enumName(typeName string, enumName string) string {
 	return typeName + enumName
+}
+
+func typeDefGoName(typeName string, public bool) string {
+	name := typeName
+
+	if isParametrizedName(typeName) {
+		name = strings.Split(name, "`")[0]
+	}
+
+	if !public {
+		name = strings.ToLower(name[0:1]) + name[1:]
+	}
+	return name
+}
+
+func isParametrizedName(typeName string) bool {
+	// parametrized types contain a '`' followed by the amount of generic parameters in their name.
+	return strings.Contains(typeName, "`")
+}
+
+func typeFilename(typeName string) string {
+	// public boolean is not relevant, we are going to lower everything
+	goname := typeDefGoName(typeName, true)
+	return strings.ToLower(goname) + ".go"
+}
+
+// removes Go reserved words from param names
+func cleanReservedWords(name string) string {
+	switch name {
+	case "type":
+		return "mType"
+	}
+	return name
 }

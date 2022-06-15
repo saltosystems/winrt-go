@@ -42,9 +42,9 @@ func Create(capacity uint32) (*Buffer, error) {
 	var out *Buffer
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().Create,
-		0,                             // this is a static func, so there's no this
-		uintptr(capacity),             // in capacity
-		uintptr(unsafe.Pointer(&out)), // out *Buffer
+		0,                                  // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(&capacity)), // in capacity
+		uintptr(unsafe.Pointer(&out)),      // out *Buffer
 	)
 
 	if hr != 0 {

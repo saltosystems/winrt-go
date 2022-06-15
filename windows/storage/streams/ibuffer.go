@@ -63,8 +63,8 @@ func (v *IBuffer) GetLength() (uint32, error) {
 func (v *IBuffer) SetLength(value uint32) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetLength,
-		uintptr(unsafe.Pointer(v)), // this
-		uintptr(value),             // in value
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&value)), // in value
 	)
 
 	if hr != 0 {
