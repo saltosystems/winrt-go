@@ -186,3 +186,12 @@ func (typeDef *TypeDef) GetImplementedInterfaces() ([]QualifiedID, error) {
 
 	return interfaces, nil
 }
+
+// Extends returns true if the type extends the given class
+func (typeDef *TypeDef) Extends(class string) (bool, error) {
+	ns, name, err := typeDef.Ctx().ResolveTypeDefOrRefName(typeDef.TypeDef.Extends)
+	if err != nil {
+		return false, err
+	}
+	return ns+"."+name == class, nil
+}

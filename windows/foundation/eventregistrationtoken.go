@@ -6,4 +6,5 @@
 package foundation
 
 type EventRegistrationToken struct {
+	Value int64
 }

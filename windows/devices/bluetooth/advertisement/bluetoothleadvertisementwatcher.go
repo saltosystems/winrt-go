@@ -110,7 +110,7 @@ func (v *iBluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.Typed
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
 	}
 
 	return out, nil
@@ -126,7 +126,7 @@ func (v *iBluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedE
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
 	}
 
 	return out, nil

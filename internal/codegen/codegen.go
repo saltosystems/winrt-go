@@ -71,8 +71,6 @@ func (g *generator) generate(typeDef *metadata.TypeDef) error {
 		return fmt.Errorf("%s.%s is not a WinRT class", typeDef.TypeNamespace, typeDef.TypeName)
 	}
 
-	_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
-
 	// get templates
 	tmpl, err := getTemplates()
 	if err != nil {
@@ -131,6 +129,8 @@ func (g *generator) loadCodeGenData(typeDef *metadata.TypeDef) error {
 
 	switch {
 	case g.isInterface(typeDef):
+		_ = level.Info(g.logger).Log("msg", "generating interface", "interface", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
 		if err := g.validateInterface(typeDef); err != nil {
 			return err
 		}
@@ -141,12 +141,24 @@ func (g *generator) loadCodeGenData(typeDef *metadata.TypeDef) error {
 		}
 		g.genData.Interfaces = append(g.genData.Interfaces, *iface)
 	case g.isEnum(typeDef):
+		_ = level.Info(g.logger).Log("msg", "generating enum", "enum", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
 		enum, err := g.createGenEnum(typeDef)
 		if err != nil {
 			return err
 		}
 		g.genData.Enums = append(g.genData.Enums, *enum)
+	case g.isStruct(typeDef):
+		_ = level.Info(g.logger).Log("msg", "generating struct", "struct", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
+		genStruct, err := g.createGenStruct(typeDef)
+		if err != nil {
+			return err
+		}
+		g.genData.Structs = append(g.genData.Structs, *genStruct)
 	default:
+		_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
 		class, err := g.createGenClass(typeDef)
 		if err != nil {
 			return err
@@ -162,12 +174,21 @@ func (g *generator) isInterface(typeDef *metadata.TypeDef) bool {
 }
 
 func (g *generator) isEnum(typeDef *metadata.TypeDef) bool {
-	ns, name, err := typeDef.Ctx().ResolveTypeDefOrRefName(typeDef.Extends)
+	ok, err := typeDef.Extends("System.Enum")
 	if err != nil {
 		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
 		return false
 	}
-	return ns == "System" && name == "Enum"
+	return ok
+}
+
+func (g *generator) isStruct(typeDef *metadata.TypeDef) bool {
+	ok, err := typeDef.Extends("System.ValueType")
+	if err != nil {
+		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+	return ok
 }
 
 func (g *generator) validateInterface(typeDef *metadata.TypeDef) error {
@@ -377,6 +398,43 @@ func (g *generator) createGenEnum(typeDef *metadata.TypeDef) (*genEnum, error) {
 		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		Type:   enumType,
 		Values: enumValues,
+	}, nil
+}
+
+// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#structs
+func (g *generator) createGenStruct(typeDef *metadata.TypeDef) (*genStruct, error) {
+	// structs do not have methods, only fields
+	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
+	if err != nil {
+		return nil, err
+	}
+
+	curPkg := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
+
+	var genFields []*genParam
+	for _, f := range fields {
+		fSig, err := f.Signature.Reader().Field(typeDef.Ctx())
+		if err != nil {
+			return nil, err
+		}
+
+		fieldType, err := g.elementType(typeDef.Ctx(), fSig.Field)
+		if err != nil {
+			return nil, err
+		}
+
+		goFieldType := fieldType.GoParamString(curPkg)
+
+		// Struct fields must be fundamental types, enums, or other structs
+		genFields = append(genFields, &genParam{
+			Name: cleanReservedWords(f.Name),
+			Type: goFieldType,
+		})
+	}
+
+	return &genStruct{
+		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		Fields: genFields,
 	}, nil
 }
 
@@ -721,8 +779,8 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			return nil, err
 		}
 		return &genParamReference{
-			Name:      name,
 			Namespace: namespace,
+			Name:      name,
 			IsPointer: false,
 		}, nil
 	default:
@@ -809,9 +867,14 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 				Name:      enumName(elementTypeDef.TypeName, fields[1].Name),
 				IsPointer: false,
 			}, nil
+		} else if g.isStruct(elementTypeDef) {
+			return &genParamReference{
+				Namespace: elementTypeDef.TypeNamespace,
+				Name:      elementTypeDef.TypeName + "{}",
+				IsPointer: false,
+			}, nil
 		}
 
-		// TODO: handle structs, etc...
 		return &genParamReference{
 			Namespace: "",
 			Name:      "nil",

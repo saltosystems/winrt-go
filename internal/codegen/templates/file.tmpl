@@ -24,3 +24,7 @@ import (
 {{range .Enums}}
 	{{template "enum.tmpl" .}}
 {{end}}
+
+{{range .Structs}}
+	{{template "struct.tmpl" .}}
+{{end}}
