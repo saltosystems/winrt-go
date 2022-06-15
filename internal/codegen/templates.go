@@ -12,6 +12,7 @@ type genData struct {
 	Classes    []genClass
 	Enums      []genEnum
 	Interfaces []genInterface
+	Structs    []genStruct
 }
 
 type genInterface struct {
@@ -82,6 +83,11 @@ func (g genParamReference) GoParamString(callerPackage string) string {
 	}
 
 	return name
+}
+
+type genStruct struct {
+	Name   string
+	Fields []*genParam
 }
 
 //go:embed templates/*
