@@ -6,13 +6,11 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/saltosystems/winrt-go/winmd"
-	"github.com/tdakkota/win32metadata/md"
+	"github.com/saltosystems/winrt-go/internal/metadata"
 	"github.com/tdakkota/win32metadata/types"
 	"golang.org/x/tools/imports"
 )
@@ -24,22 +22,15 @@ const (
 	attributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
 )
 
-type classNotFoundError struct {
-	class string
-}
-
-func (e *classNotFoundError) Error() string {
-	return fmt.Sprintf("class %s was not found", e.class)
-}
-
 type generator struct {
 	class        string
 	methodFilter *MethodFilter
 
 	logger log.Logger
 
-	genData  *genData
-	winmdCtx *types.Context
+	genData *genData
+
+	mdStore *metadata.Store
 }
 
 // Generate generates the code for the given config.
@@ -48,10 +39,16 @@ func Generate(cfg *Config, logger log.Logger) error {
 		return err
 	}
 
+	mdStore, err := metadata.NewStore(logger)
+	if err != nil {
+		return err
+	}
+
 	g := &generator{
 		class:        cfg.Class,
 		methodFilter: cfg.MethodFilter(),
 		logger:       logger,
+		mdStore:      mdStore,
 	}
 	return g.run()
 }
@@ -59,53 +56,15 @@ func Generate(cfg *Config, logger log.Logger) error {
 func (g *generator) run() error {
 	_ = level.Debug(g.logger).Log("msg", "starting code generation", "class", g.class)
 
-	winmdFiles, err := winmd.AllFiles()
+	typeDef, err := g.mdStore.TypeDefByName(g.class)
 	if err != nil {
 		return err
 	}
 
-	// we don't know which winmd file contains the class, so we have to iterate over all of them
-	for _, f := range winmdFiles {
-		winmdCtx, err := parseWinMDFile(f.Name())
-		if err != nil {
-			return err
-		}
-		g.winmdCtx = winmdCtx
-
-		typeDef, err := g.typeDefByName(g.class)
-		if err != nil {
-			// class not found errors are ok
-			if _, ok := err.(*classNotFoundError); ok {
-				continue
-			}
-
-			return err
-		}
-
-		return g.generate(*typeDef)
-	}
-
-	return fmt.Errorf("class %s was not found", g.class)
-
+	return g.generate(typeDef)
 }
 
-func (g *generator) typeDefByName(class string) (*types.TypeDef, error) {
-	typeDefTable := g.winmdCtx.Table(md.TypeDef)
-	for i := uint32(0); i < typeDefTable.RowCount(); i++ {
-		var typeDef types.TypeDef
-		if err := typeDef.FromRow(typeDefTable.Row(i)); err != nil {
-			return nil, err
-		}
-
-		if typeDef.TypeNamespace+"."+typeDef.TypeName == class {
-			return &typeDef, nil
-		}
-	}
-
-	return nil, &classNotFoundError{class: class}
-}
-
-func (g *generator) generate(typeDef types.TypeDef) error {
+func (g *generator) generate(typeDef *metadata.TypeDef) error {
 
 	// we only support WinRT types: check the tdWindowsRuntime flag (0x4000)
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
@@ -166,17 +125,7 @@ func (g *generator) generate(typeDef types.TypeDef) error {
 	return err
 }
 
-func parseWinMDFile(path string) (*types.Context, error) {
-	f, err := winmd.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-
-	return types.FromPE(f)
-}
-
-func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
+func (g *generator) loadCodeGenData(typeDef *metadata.TypeDef) error {
 	g.genData = &genData{
 		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
 	}
@@ -209,12 +158,12 @@ func (g *generator) loadCodeGenData(typeDef types.TypeDef) error {
 	return nil
 }
 
-func (g *generator) isInterface(typeDef types.TypeDef) bool {
+func (g *generator) isInterface(typeDef *metadata.TypeDef) bool {
 	return typeDef.Flags.Interface()
 }
 
-func (g *generator) isEnum(typeDef types.TypeDef) bool {
-	ns, name, err := g.winmdCtx.ResolveTypeDefOrRefName(typeDef.Extends)
+func (g *generator) isEnum(typeDef *metadata.TypeDef) bool {
+	ns, name, err := typeDef.Ctx().ResolveTypeDefOrRefName(typeDef.Extends)
 	if err != nil {
 		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
 		return false
@@ -222,7 +171,7 @@ func (g *generator) isEnum(typeDef types.TypeDef) bool {
 	return ns == "System" && name == "Enum"
 }
 
-func (g *generator) validateInterface(typeDef types.TypeDef) error {
+func (g *generator) validateInterface(typeDef *metadata.TypeDef) error {
 	// Any WinRT interface with private visibility must have a single ExclusiveToAttribute.
 	// the ExclusiveToAttribute must reference a runtime class.
 
@@ -236,7 +185,7 @@ func (g *generator) validateInterface(typeDef types.TypeDef) error {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
-func (g *generator) createGenInterface(typeDef types.TypeDef, requiresActivation bool) (*genInterface, error) {
+func (g *generator) createGenInterface(typeDef *metadata.TypeDef, requiresActivation bool) (*genInterface, error) {
 	// Any WinRT interface with public visibility must not have an ExclusiveToAttribute.
 
 	funcs, err := g.getGenFuncs(typeDef, requiresActivation)
@@ -258,13 +207,13 @@ func (g *generator) createGenInterface(typeDef types.TypeDef, requiresActivation
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
-func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
-	exclusiveInterfaceTypes := make([]*types.TypeDef, 0)
+func (g *generator) createGenClass(typeDef *metadata.TypeDef) (*genClass, error) {
+	exclusiveInterfaceTypes := make([]*metadata.TypeDef, 0)
 	// true => interface requires activation, false => interface is implemented by this class
 	activatedInterfaces := make(map[string]bool)
 
 	// get all the interfaces this class implements
-	interfaces, err := g.getImplementedInterfaces(typeDef)
+	interfaces, err := typeDef.GetImplementedInterfaces()
 	if err != nil {
 		return nil, err
 	}
@@ -277,17 +226,17 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 			g.addImportFor(iface.Namespace, iface.Name)
 		}
 
-		ifaceTypeDef, err := g.typeDefByName(iface.Namespace + "." + iface.Name)
+		ifaceTypeDef, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name)
 		if err != nil {
 			return nil, err
 		}
-		implInterfaces = append(implInterfaces, pkg+typeDefGoName(*ifaceTypeDef))
+		implInterfaces = append(implInterfaces, pkg+typeDefGoName(ifaceTypeDef))
 
 		// The interface we implement may be exclusive to this class, in which case we need to generate it.
 		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
 		// a TypeRef, the class should be found using its name.
-		if td, err := g.typeDefByName(iface.Namespace + "." + iface.Name); err == nil {
-			if _, ok := g.interfaceIsExclusiveTo(*td); ok {
+		if td, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name); err == nil {
+			if _, ok := g.interfaceIsExclusiveTo(td); ok {
 				exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, td)
 				activatedInterfaces[td.TypeNamespace+"."+td.TypeName] = false // implemented interfaces do not require activation
 			}
@@ -296,11 +245,11 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 
 	// Runtime classes have zero or more StaticAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
-	staticAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeStaticAttribute)
+	staticAttributeBlobs := typeDef.GetTypeDefAttributesWithType(attributeTypeStaticAttribute)
 	for _, blob := range staticAttributeBlobs {
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found static interface", "class", class)
-		staticClass, err := g.typeDefByName(class)
+		staticClass, err := g.mdStore.TypeDefByName(class)
 		if err != nil {
 			_ = level.Error(g.logger).Log("msg", "static class defined in StaticAttribute not found", "class", class, "err", err)
 			return nil, err
@@ -312,7 +261,7 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 
 	// Runtime classes have zero or more ActivatableAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#activation
-	activatableAttributeBlobs := g.getTypeDefAttributesWithType(typeDef, attributeTypeActivatableAttribute)
+	activatableAttributeBlobs := typeDef.GetTypeDefAttributesWithType(attributeTypeActivatableAttribute)
 	hasEmptyConstructor := false
 	for _, blob := range activatableAttributeBlobs {
 		// check for empty constructor
@@ -325,7 +274,7 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 		// check for an activation interface
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found activatable interface", "class", class)
-		activatableClass, err := g.typeDefByName(class)
+		activatableClass, err := g.mdStore.TypeDefByName(class)
 		if err != nil {
 			// the activatable class may be empty in some cases, example:
 			// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/winrt/windows.devices.bluetooth.advertisement.idl#L518
@@ -344,7 +293,7 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 		requiresActivation := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
 		isExtendedInterface := !requiresActivation
 
-		ifaceGen, err := g.createGenInterface(*iface, requiresActivation)
+		ifaceGen, err := g.createGenInterface(iface, requiresActivation)
 		if err != nil {
 			return nil, err
 		}
@@ -374,8 +323,8 @@ func (g *generator) createGenClass(typeDef types.TypeDef) (*genClass, error) {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums
-func (g *generator) createGenEnum(typeDef types.TypeDef) (*genEnum, error) {
-	fields, err := typeDef.ResolveFieldList(g.winmdCtx)
+func (g *generator) createGenEnum(typeDef *metadata.TypeDef) (*genEnum, error) {
+	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
@@ -391,11 +340,11 @@ func (g *generator) createGenEnum(typeDef types.TypeDef) (*genEnum, error) {
 		return nil, fmt.Errorf("enum %s has more than one instance field, expected 1", typeDef.TypeNamespace+"."+typeDef.TypeName)
 	}
 
-	fieldSig, err := fields[0].Signature.Reader().Field(g.winmdCtx)
+	fieldSig, err := fields[0].Signature.Reader().Field(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
-	elType, err := g.elementType(fieldSig.Field)
+	elType, err := g.elementType(typeDef.Ctx(), fieldSig.Field)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +363,7 @@ func (g *generator) createGenEnum(typeDef types.TypeDef) (*genEnum, error) {
 		}
 
 		var fieldIndex uint32 = typeDef.FieldList.Start() + 1 + uint32(i)
-		enumRawValue, err := g.getValueForEnumField(fieldIndex)
+		enumRawValue, err := typeDef.GetValueForEnumField(fieldIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -432,51 +381,17 @@ func (g *generator) createGenEnum(typeDef types.TypeDef) (*genEnum, error) {
 	}, nil
 }
 
-func (g *generator) getValueForEnumField(fieldIndex uint32) (string, error) {
-	// For each Enum value definition, there is a corresponding row in the Constant table to store the integer value for the enum value.
-	tableConstants := g.winmdCtx.Table(md.Constant)
-	for i := uint32(0); i < tableConstants.RowCount(); i++ {
-		var constant types.Constant
-		if err := constant.FromRow(tableConstants.Row(i)); err != nil {
-			return "", err
-		}
-
-		if t, _ := constant.Parent.Table(); t != md.Field {
-			continue
-		}
-
-		// does the blob belong to the field we're looking for?
-		// The parent is an index into the field table that holds the associated enum value record
-		if constant.Parent.TableIndex() != fieldIndex {
-			continue
-		}
-
-		// The value is a blob that we need to read as little endian
-		var blobIndex uint32
-		for i, b := range constant.Value {
-			blobIndex += uint32(b) << (i * 8)
-		}
-		return strconv.Itoa(int(blobIndex)), nil
-	}
-
-	return "", fmt.Errorf("no value found for field %d", fieldIndex)
-}
-
-func (g *generator) interfaceIsExclusiveTo(typeDef types.TypeDef) (string, bool) {
-	exclusiveToBlob, err := g.getTypeDefAttributeWithType(typeDef, attributeTypeExclusiveTo)
+func (g *generator) interfaceIsExclusiveTo(typeDef *metadata.TypeDef) (string, bool) {
+	exclusiveToBlob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeExclusiveTo)
 	// an error here is fine, we just won't have the ExclusiveTo attribute
 	if err != nil {
 		return "", false
 	}
 	exclusiveToClass := extractClassFromBlob(exclusiveToBlob)
-	exclusiveToTypeCandidate, err := g.typeDefByName(exclusiveToClass)
-	if err != nil {
-		return "", false
-	}
-	return exclusiveToTypeCandidate.TypeNamespace + "." + exclusiveToTypeCandidate.TypeName, true
+	return exclusiveToClass, true
 }
 
-func typeDefGoName(typeDef types.TypeDef) string {
+func typeDefGoName(typeDef *metadata.TypeDef) string {
 	name := typeDef.TypeName
 	if !typeDef.Flags.Public() {
 		name = strings.ToLower(name[0:1]) + name[1:]
@@ -507,135 +422,16 @@ func extractClassFromBlob(blob []byte) string {
 	return string(class)
 }
 
-func (g *generator) getTypeDefAttributeWithType(typeDef types.TypeDef, lookupAttrTypeClass string) ([]byte, error) {
-	result := g.getTypeDefAttributesWithType(typeDef, lookupAttrTypeClass)
-	if len(result) == 0 {
-		return nil, fmt.Errorf("type %s has no custom attribute %s", typeDef.TypeNamespace+"."+typeDef.TypeName, lookupAttrTypeClass)
-	} else if len(result) > 1 {
-		_ = level.Warn(g.logger).Log(
-			"msg", "type has multiple custom attributes, returning the first one",
-			"type", typeDef.TypeNamespace+"."+typeDef.TypeName,
-			"attr", lookupAttrTypeClass,
-		)
-	}
-
-	return result[0], nil
-}
-
-func (g *generator) getTypeDefAttributesWithType(typeDef types.TypeDef, lookupAttrTypeClass string) [][]byte {
-	result := make([][]byte, 0)
-
-	cAttrTable := g.winmdCtx.Table(md.CustomAttribute)
-	for i := uint32(0); i < cAttrTable.RowCount(); i++ {
-		var cAttr types.CustomAttribute
-		if err := cAttr.FromRow(cAttrTable.Row(i)); err != nil {
-			continue
-		}
-
-		// - Parent: The owner of the Attribute must be the given typeDef
-		if cAttrParentTable, _ := cAttr.Parent.Table(); cAttrParentTable != md.TypeDef {
-			continue
-		}
-
-		var parentTypeDef types.TypeDef
-		row, ok := cAttr.Parent.Row(g.winmdCtx)
-		if !ok {
-			continue
-		}
-		if err := parentTypeDef.FromRow(row); err != nil {
-			continue
-		}
-
-		// does the blob belong to the type we're looking for?
-		if parentTypeDef.TypeNamespace != typeDef.TypeNamespace || parentTypeDef.TypeName != typeDef.TypeName {
-			continue
-		}
-
-		// - Type: the attribute type must be the given type
-		// the cAttr.Type table can be either a MemberRef or a MethodRef.
-		// Since we are looking for a type, we will only consider the MemberRef.
-		if cAttrTypeTable, _ := cAttr.Type.Table(); cAttrTypeTable != md.MemberRef {
-			continue
-		}
-
-		var attrTypeMemberRef types.MemberRef
-		row, ok = cAttr.Type.Row(g.winmdCtx)
-		if !ok {
-			continue
-		}
-		if err := attrTypeMemberRef.FromRow(row); err != nil {
-			continue
-		}
-
-		// we need to check the MemberRef Class
-		// the value can belong to several tables, but we are only going to check for TypeRef
-		if classTable, _ := attrTypeMemberRef.Class.Table(); classTable != md.TypeRef {
-			continue
-		}
-
-		var attrTypeRef types.TypeRef
-		row, ok = attrTypeMemberRef.Class.Row(g.winmdCtx)
-		if !ok {
-			continue
-		}
-		if err := attrTypeRef.FromRow(row); err != nil {
-			continue
-		}
-
-		if attrTypeRef.TypeNamespace+"."+attrTypeRef.TypeName == lookupAttrTypeClass {
-			result = append(result, cAttr.Value)
-		}
-	}
-
-	return result
-}
-
-func (g *generator) getImplementedInterfaces(typeDef types.TypeDef) ([]qualifiedID, error) {
-	interfaces := make([]qualifiedID, 0)
-
-	tableInterfaceImpl := g.winmdCtx.Table(md.InterfaceImpl)
-	for i := uint32(0); i < tableInterfaceImpl.RowCount(); i++ {
-		var interfaceImpl types.InterfaceImpl
-		if err := interfaceImpl.FromRow(tableInterfaceImpl.Row(i)); err != nil {
-			return nil, err
-		}
-
-		classTd, err := interfaceImpl.ResolveClass(g.winmdCtx)
-		if err != nil {
-			return nil, err
-		}
-
-		if classTd.TypeNamespace+"."+classTd.TypeName != typeDef.TypeNamespace+"."+typeDef.TypeName {
-			// not the class we are looking for
-			continue
-		}
-
-		if t, ok := interfaceImpl.Interface.Table(); ok && t == md.TypeSpec {
-			// ignore type spec rows
-			continue
-		}
-
-		ifaceNS, ifaceName, err := g.winmdCtx.ResolveTypeDefOrRefName(interfaceImpl.Interface)
-		if err != nil {
-			return nil, err
-		}
-
-		interfaces = append(interfaces, qualifiedID{Namespace: ifaceNS, Name: ifaceName})
-	}
-
-	return interfaces, nil
-}
-
 func (g *generator) addImportFor(ns, name string) {
 	folder := typeToFolder(ns, name)
 	i := "github.com/saltosystems/winrt-go/" + folder
 	g.genData.Imports = append(g.genData.Imports, i)
 }
 
-func (g *generator) getGenFuncs(typeDef types.TypeDef, requiresActivation bool) ([]genFunc, error) {
+func (g *generator) getGenFuncs(typeDef *metadata.TypeDef, requiresActivation bool) ([]genFunc, error) {
 	var genFuncs []genFunc
 
-	methods, err := typeDef.ResolveMethodList(g.winmdCtx)
+	methods, err := typeDef.ResolveMethodList(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +442,8 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef, requiresActivation bool) 
 	}
 
 	for _, m := range methods {
-		generatedFunc, err := g.genFuncFromMethod(typeDef, m, exclusiveToType, requiresActivation)
+		methodDef := m
+		generatedFunc, err := g.genFuncFromMethod(typeDef, &methodDef, exclusiveToType, requiresActivation)
 		if err != nil {
 			return nil, err
 		}
@@ -656,20 +453,20 @@ func (g *generator) getGenFuncs(typeDef types.TypeDef, requiresActivation bool) 
 	return genFuncs, nil
 }
 
-func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
+func (g *generator) genFuncFromMethod(typeDef *metadata.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
 	// add the type imports to the top of the file
 	// only if the method is going to be implemented
-	implement := g.shouldImplementMethod(m)
+	implement := g.shouldImplementMethod(methodDef)
 	var params []*genParam
 	var retParam *genParam
 	if implement {
-		paramsCandidate, err := g.getInParameters(typeDef, m)
+		paramsCandidate, err := g.getInParameters(typeDef, methodDef)
 		if err != nil {
 			return nil, err
 		}
 		params = paramsCandidate
 
-		retParamCandidate, err := g.getReturnParameters(typeDef, m)
+		retParamCandidate, err := g.getReturnParameters(typeDef, methodDef)
 		if err != nil {
 			return nil, err
 		}
@@ -707,7 +504,7 @@ func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, 
 	}
 
 	return &genFunc{
-		Name:               m.Name,
+		Name:               methodDef.Name,
 		Implement:          implement,
 		InParams:           params,
 		ReturnParam:        retParam,
@@ -717,12 +514,12 @@ func (g *generator) genFuncFromMethod(typeDef types.TypeDef, m types.MethodDef, 
 	}, nil
 }
 
-func (g *generator) shouldImplementMethod(m types.MethodDef) bool {
-	return g.methodFilter.Filter(m.Name)
+func (g *generator) shouldImplementMethod(methodDef *types.MethodDef) bool {
+	return g.methodFilter.Filter(methodDef.Name)
 }
 
-func (g *generator) typeGUID(typeDef types.TypeDef) (string, error) {
-	blob, err := g.getTypeDefAttributeWithType(typeDef, attributeTypeGUID)
+func (g *generator) typeGUID(typeDef *metadata.TypeDef) (string, error) {
+	blob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeGUID)
 	if err != nil {
 		return "", err
 	}
@@ -759,24 +556,24 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
-func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([]*genParam, error) {
+func (g *generator) getInParameters(typeDef *metadata.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 
-	params, err := m.ResolveParamList(g.winmdCtx)
+	params, err := methodDef.ResolveParamList(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
 
 	// the signature contains the parameter
 	// types and return type of the method
-	r := m.Signature.Reader()
-	mr, err := r.Method(g.winmdCtx)
+	r := methodDef.Signature.Reader()
+	mr, err := r.Method(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
 
 	genParams := make([]*genParam, 0)
 	for i, e := range mr.Params {
-		elType, err := g.elementType(e)
+		elType, err := g.elementType(typeDef.Ctx(), e)
 		if err != nil {
 			return nil, err
 		}
@@ -790,11 +587,11 @@ func (g *generator) getInParameters(typeDef types.TypeDef, m types.MethodDef) ([
 	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef) (*genParam, error) {
+func (g *generator) getReturnParameters(typeDef *metadata.TypeDef, methodDef *types.MethodDef) (*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
-	r := m.Signature.Reader()
-	methodSignature, err := r.Method(g.winmdCtx)
+	r := methodDef.Signature.Reader()
+	methodSignature, err := r.Method(typeDef.Ctx())
 	if err != nil {
 		return nil, err
 	}
@@ -804,12 +601,12 @@ func (g *generator) getReturnParameters(typeDef types.TypeDef, m types.MethodDef
 		return nil, nil
 	}
 
-	elType, err := g.elementType(methodSignature.Return)
+	elType, err := g.elementType(typeDef.Ctx(), methodSignature.Return)
 	if err != nil {
 		return nil, err
 	}
 
-	defValue, err := g.elementDefaultValue(methodSignature.Return)
+	defValue, err := g.elementDefaultValue(typeDef.Ctx(), methodSignature.Return)
 	if err != nil {
 		return nil, err
 	}
@@ -832,7 +629,7 @@ func getParamName(params []types.Param, i uint16) string {
 	return "__ERROR__"
 }
 
-func (g *generator) elementType(e types.Element) (*genParamReference, error) {
+func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamReference, error) {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
 		return &genParamReference{
@@ -914,7 +711,7 @@ func (g *generator) elementType(e types.Element) (*genParamReference, error) {
 		}, nil
 	case types.ELEMENT_TYPE_CLASS:
 		// return class name
-		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
 			return nil, err
 		}
@@ -924,7 +721,7 @@ func (g *generator) elementType(e types.Element) (*genParamReference, error) {
 			IsPointer: true,
 		}, nil
 	case types.ELEMENT_TYPE_VALUETYPE:
-		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
 			return nil, err
 		}
@@ -938,7 +735,7 @@ func (g *generator) elementType(e types.Element) (*genParamReference, error) {
 	}
 }
 
-func (g *generator) elementDefaultValue(e types.Element) (*genParamReference, error) {
+func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*genParamReference, error) {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
 		return &genParamReference{
@@ -990,18 +787,18 @@ func (g *generator) elementDefaultValue(e types.Element) (*genParamReference, er
 		}, nil
 	case types.ELEMENT_TYPE_VALUETYPE:
 		// we need to get the underlying type (enum, struct, etc...)
-		namespace, name, err := g.winmdCtx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
+		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
 			return nil, err
 		}
-		elementTypeDef, err := g.typeDefByName(namespace + "." + name)
+		elementTypeDef, err := g.mdStore.TypeDefByName(namespace + "." + name)
 		if err != nil {
 			return nil, err
 		}
 
-		if g.isEnum(*elementTypeDef) {
+		if g.isEnum(elementTypeDef) {
 			// return the first enum value
-			fields, err := elementTypeDef.ResolveFieldList(g.winmdCtx)
+			fields, err := elementTypeDef.ResolveFieldList(ctx)
 			if err != nil {
 				return nil, err
 			}

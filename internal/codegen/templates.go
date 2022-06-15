@@ -6,11 +6,6 @@ import (
 	"text/template"
 )
 
-type qualifiedID struct {
-	Namespace string
-	Name      string
-}
-
 type genData struct {
 	Package    string
 	Imports    []string
