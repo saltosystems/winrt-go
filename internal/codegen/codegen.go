@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/saltosystems/winrt-go/internal/metadata"
+	"github.com/saltosystems/winrt-go/internal/winmd"
 	"github.com/tdakkota/win32metadata/types"
 	"golang.org/x/tools/imports"
 )
@@ -29,7 +29,7 @@ type generator struct {
 
 	genData *genData
 
-	mdStore *metadata.Store
+	mdStore *winmd.Store
 }
 
 // Generate generates the code for the given config.
@@ -38,7 +38,7 @@ func Generate(cfg *Config, logger log.Logger) error {
 		return err
 	}
 
-	mdStore, err := metadata.NewStore(logger)
+	mdStore, err := winmd.NewStore(logger)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (g *generator) run() error {
 	return g.generate(typeDef)
 }
 
-func (g *generator) generate(typeDef *metadata.TypeDef) error {
+func (g *generator) generate(typeDef *winmd.TypeDef) error {
 
 	// we only support WinRT types: check the tdWindowsRuntime flag (0x4000)
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
@@ -122,7 +122,7 @@ func (g *generator) generate(typeDef *metadata.TypeDef) error {
 	return err
 }
 
-func (g *generator) loadCodeGenData(typeDef *metadata.TypeDef) error {
+func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 	g.genData = &genData{
 		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
 	}
@@ -169,11 +169,11 @@ func (g *generator) loadCodeGenData(typeDef *metadata.TypeDef) error {
 	return nil
 }
 
-func (g *generator) isInterface(typeDef *metadata.TypeDef) bool {
+func (g *generator) isInterface(typeDef *winmd.TypeDef) bool {
 	return typeDef.Flags.Interface()
 }
 
-func (g *generator) isEnum(typeDef *metadata.TypeDef) bool {
+func (g *generator) isEnum(typeDef *winmd.TypeDef) bool {
 	ok, err := typeDef.Extends("System.Enum")
 	if err != nil {
 		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
@@ -182,7 +182,7 @@ func (g *generator) isEnum(typeDef *metadata.TypeDef) bool {
 	return ok
 }
 
-func (g *generator) isStruct(typeDef *metadata.TypeDef) bool {
+func (g *generator) isStruct(typeDef *winmd.TypeDef) bool {
 	ok, err := typeDef.Extends("System.ValueType")
 	if err != nil {
 		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
@@ -191,7 +191,7 @@ func (g *generator) isStruct(typeDef *metadata.TypeDef) bool {
 	return ok
 }
 
-func (g *generator) validateInterface(typeDef *metadata.TypeDef) error {
+func (g *generator) validateInterface(typeDef *winmd.TypeDef) error {
 	// Any WinRT interface with private visibility must have a single ExclusiveToAttribute.
 	// the ExclusiveToAttribute must reference a runtime class.
 
@@ -205,8 +205,11 @@ func (g *generator) validateInterface(typeDef *metadata.TypeDef) error {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
-func (g *generator) createGenInterface(typeDef *metadata.TypeDef, requiresActivation bool) (*genInterface, error) {
-	// Any WinRT interface with public visibility must not have an ExclusiveToAttribute.
+func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivation bool) (*genInterface, error) {
+	if isParametrizedName(typeDef.TypeName) {
+		// parameterized interfaces are not yet supported
+		return nil, fmt.Errorf("could not generate %s.%s, parameterized interfaces are not yet supported", typeDef.TypeNamespace, typeDef.TypeName)
+	}
 
 	funcs, err := g.getGenFuncs(typeDef, requiresActivation)
 	if err != nil {
@@ -227,8 +230,8 @@ func (g *generator) createGenInterface(typeDef *metadata.TypeDef, requiresActiva
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
-func (g *generator) createGenClass(typeDef *metadata.TypeDef) (*genClass, error) {
-	exclusiveInterfaceTypes := make([]*metadata.TypeDef, 0)
+func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
+	exclusiveInterfaceTypes := make([]*winmd.TypeDef, 0)
 	// true => interface requires activation, false => interface is implemented by this class
 	activatedInterfaces := make(map[string]bool)
 
@@ -343,7 +346,7 @@ func (g *generator) createGenClass(typeDef *metadata.TypeDef) (*genClass, error)
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums
-func (g *generator) createGenEnum(typeDef *metadata.TypeDef) (*genEnum, error) {
+func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
 	if err != nil {
 		return nil, err
@@ -402,7 +405,7 @@ func (g *generator) createGenEnum(typeDef *metadata.TypeDef) (*genEnum, error) {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#structs
-func (g *generator) createGenStruct(typeDef *metadata.TypeDef) (*genStruct, error) {
+func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) {
 	// structs do not have methods, only fields
 	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
 	if err != nil {
@@ -438,7 +441,7 @@ func (g *generator) createGenStruct(typeDef *metadata.TypeDef) (*genStruct, erro
 	}, nil
 }
 
-func (g *generator) interfaceIsExclusiveTo(typeDef *metadata.TypeDef) (string, bool) {
+func (g *generator) interfaceIsExclusiveTo(typeDef *winmd.TypeDef) (string, bool) {
 	exclusiveToBlob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeExclusiveTo)
 	// an error here is fine, we just won't have the ExclusiveTo attribute
 	if err != nil {
@@ -477,7 +480,7 @@ func (g *generator) addImportFor(ns, name string) {
 	g.genData.Imports = append(g.genData.Imports, i)
 }
 
-func (g *generator) getGenFuncs(typeDef *metadata.TypeDef, requiresActivation bool) ([]genFunc, error) {
+func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool) ([]genFunc, error) {
 	var genFuncs []genFunc
 
 	methods, err := typeDef.ResolveMethodList(typeDef.Ctx())
@@ -502,7 +505,7 @@ func (g *generator) getGenFuncs(typeDef *metadata.TypeDef, requiresActivation bo
 	return genFuncs, nil
 }
 
-func (g *generator) genFuncFromMethod(typeDef *metadata.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
+func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
 	// add the type imports to the top of the file
 	// only if the method is going to be implemented
 	implement := g.shouldImplementMethod(methodDef)
@@ -567,7 +570,7 @@ func (g *generator) shouldImplementMethod(methodDef *types.MethodDef) bool {
 	return g.methodFilter.Filter(methodDef.Name)
 }
 
-func (g *generator) typeGUID(typeDef *metadata.TypeDef) (string, error) {
+func (g *generator) typeGUID(typeDef *winmd.TypeDef) (string, error) {
 	blob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeGUID)
 	if err != nil {
 		return "", err
@@ -605,7 +608,7 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
-func (g *generator) getInParameters(typeDef *metadata.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
+func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 
 	params, err := methodDef.ResolveParamList(typeDef.Ctx())
 	if err != nil {
@@ -637,7 +640,7 @@ func (g *generator) getInParameters(typeDef *metadata.TypeDef, methodDef *types.
 	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(typeDef *metadata.TypeDef, methodDef *types.MethodDef) (*genParam, error) {
+func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) (*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := methodDef.Signature.Reader()

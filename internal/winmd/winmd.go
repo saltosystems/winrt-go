@@ -8,18 +8,18 @@ import (
 	"io/ioutil"
 )
 
-//go:embed *.winmd
+//go:embed metadata/*.winmd
 var files embed.FS
 
-// AllFiles returns all winmd files embedded in the binary.
-func AllFiles() ([]fs.DirEntry, error) {
-	return files.ReadDir(".")
+// allFiles returns all winmd files embedded in the binary.
+func allFiles() ([]fs.DirEntry, error) {
+	return files.ReadDir("metadata")
 }
 
-// Open reads the given file and returns a pe.File instance.
+// open reads the given file and returns a pe.File instance.
 // The user should close the returned instance once he is done working with it.
-func Open(path string) (*pe.File, error) {
-	f, err := files.Open(path)
+func open(path string) (*pe.File, error) {
+	f, err := files.Open("metadata/" + path)
 	if err != nil {
 		return nil, err
 	}
