@@ -1,10 +1,9 @@
-package metadata
+package winmd
 
 import (
 	"fmt"
 
 	"github.com/go-kit/log"
-	"github.com/saltosystems/winrt-go/winmd"
 	"github.com/tdakkota/win32metadata/md"
 	"github.com/tdakkota/win32metadata/types"
 )
@@ -28,7 +27,7 @@ type Store struct {
 func NewStore(logger log.Logger) (*Store, error) {
 	contexts := make(map[string]*types.Context)
 
-	winmdFiles, err := winmd.AllFiles()
+	winmdFiles, err := allFiles()
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +48,7 @@ func NewStore(logger log.Logger) (*Store, error) {
 }
 
 func parseWinMDFile(path string) (*types.Context, error) {
-	f, err := winmd.Open(path)
+	f, err := open(path)
 	if err != nil {
 		return nil, err
 	}
