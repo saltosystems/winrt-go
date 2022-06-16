@@ -137,7 +137,7 @@ func enumName(typeName string, enumName string) string {
 func typeDefGoName(typeName string, public bool) string {
 	name := typeName
 
-	if isParametrizedName(typeName) {
+	if isParameterizedName(typeName) {
 		name = strings.Split(name, "`")[0]
 	}
 
@@ -147,8 +147,8 @@ func typeDefGoName(typeName string, public bool) string {
 	return name
 }
 
-func isParametrizedName(typeName string) bool {
-	// parametrized types contain a '`' followed by the amount of generic parameters in their name.
+func isParameterizedName(typeName string) bool {
+	// parameterized types contain a '`' followed by the amount of generic parameters in their name.
 	return strings.Contains(typeName, "`")
 }
 
