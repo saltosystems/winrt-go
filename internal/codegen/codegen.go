@@ -206,7 +206,10 @@ func (g *generator) validateInterface(typeDef *metadata.TypeDef) error {
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
 func (g *generator) createGenInterface(typeDef *metadata.TypeDef, requiresActivation bool) (*genInterface, error) {
-	// Any WinRT interface with public visibility must not have an ExclusiveToAttribute.
+	if isParameterizedName(typeDef.TypeName) {
+		// parameterized interfaces are not yet supported
+		return nil, fmt.Errorf("could not generate %s.%s, parameterized interfaces are not yet supported", typeDef.TypeNamespace, typeDef.TypeName)
+	}
 
 	funcs, err := g.getGenFuncs(typeDef, requiresActivation)
 	if err != nil {
