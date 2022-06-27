@@ -206,7 +206,7 @@ func (g *generator) validateInterface(typeDef *winmd.TypeDef) error {
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
 func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivation bool) (*genInterface, error) {
-	if isParametrizedName(typeDef.TypeName) {
+	if isParameterizedName(typeDef.TypeName) {
 		// parameterized interfaces are not yet supported
 		return nil, fmt.Errorf("could not generate %s.%s, parameterized interfaces are not yet supported", typeDef.TypeNamespace, typeDef.TypeName)
 	}
