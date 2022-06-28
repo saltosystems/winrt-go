@@ -195,3 +195,41 @@ func (typeDef *TypeDef) Extends(class string) (bool, error) {
 	}
 	return ns+"."+name == class, nil
 }
+
+// GetGenericParams returns the generic parameters of the type.
+func (typeDef *TypeDef) GetGenericParams() ([]*types.GenericParam, error) {
+	params := make([]*types.GenericParam, 0)
+	tableGenericParam := typeDef.Ctx().Table(md.GenericParam)
+	for i := uint32(0); i < tableGenericParam.RowCount(); i++ {
+		var genericParam types.GenericParam
+		if err := genericParam.FromRow(tableGenericParam.Row(i)); err != nil {
+			continue
+		}
+
+		// - Owner: The owner of the Attribute must be the given typeDef
+		if genericParamOwnerTable, _ := genericParam.Owner.Table(); genericParamOwnerTable != md.TypeDef {
+			continue
+		}
+
+		var ownerTypeDef types.TypeDef
+		row, ok := genericParam.Owner.Row(typeDef.Ctx())
+		if !ok {
+			continue
+		}
+		if err := ownerTypeDef.FromRow(row); err != nil {
+			continue
+		}
+
+		// does the blob belong to the type we're looking for?
+		if ownerTypeDef.TypeNamespace != typeDef.TypeNamespace || ownerTypeDef.TypeName != typeDef.TypeName {
+			continue
+		}
+
+		params = append(params, &genericParam)
+	}
+	if len(params) == 0 {
+		return nil, fmt.Errorf("could not find generic params for type %s.%s", typeDef.TypeNamespace, typeDef.TypeName)
+	}
+
+	return params, nil
+}

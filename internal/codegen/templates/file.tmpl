@@ -28,3 +28,10 @@ import (
 {{range .Structs}}
 	{{template "struct.tmpl" .}}
 {{end}}
+
+{{range .Delegates}}
+	{{template "delegate.tmpl" .}}
+{{end}}
+{{range .DelegateExports}}
+	{{template "delegate_exports.tmpl" .}}
+{{end}}

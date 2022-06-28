@@ -1,0 +1,69 @@
+/*
+#include <stdint.h>
+
+// Note: these functions have a different signature but because they are only
+// used as function pointers (and never called) and because they use C name
+// mangling, the signature doesn't really matter.
+void winrt_{{.Name}}_Invoke(void);
+void winrt_{{.Name}}_QueryInterface(void);
+
+// This is the contract the functions below should adhere to:
+// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+
+static uint64_t winrt_{{.Name}}_AddRef(void) {
+	// This is safe, see winrt_{{.Name}}_Release.
+	return 2;
+}
+
+static uint64_t winrt_{{.Name}}_Release(void) {
+	// Pretend there is one reference left.
+	// The docs say:
+	// > This value is intended to be used only for test purposes.
+	// Also see:
+	// https://docs.microsoft.com/en-us/archive/msdn-magazine/2013/august/windows-with-c-the-windows-runtime-application-model
+	return 1;
+}
+
+// The Vtable structure for WinRT {{.Name}} interfaces.
+typedef struct {
+	void *QueryInterface;
+	void *AddRef;
+	void *Release;
+	void *Invoke;
+} {{.Name}}Vtbl_t;
+
+// The Vtable itself. It can be kept constant.
+static const {{.Name}}Vtbl_t winrt_{{.Name}}Vtbl = {
+	(void*)winrt_{{.Name}}_QueryInterface,
+	(void*)winrt_{{.Name}}_AddRef,
+	(void*)winrt_{{.Name}}_Release,
+	(void*)winrt_{{.Name}}_Invoke,
+};
+
+// A small helper function to get the Vtable.
+const {{.Name}}Vtbl_t * winrt_get{{.Name}}Vtbl(void) {
+	return &winrt_{{.Name}}Vtbl;
+}
+*/
+import "C"
+
+const GUID{{.Name}} string = "{{.GUID}}"
+
+type {{.Name}} struct {
+	ole.IUnknown
+	IID      *ole.GUID
+	Callback {{.Name}}Callback
+}
+
+type {{.Name}}Callback func({{range .InParams -}}
+    {{.Name}} {{.Type}},
+{{- end}})
+
+func New{{.Name}}(callback TypedEventHandlerCallback) *{{.Name}} {
+    inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
+    inst.RawVTable = (*interface{})(C.winrt_get{{.Name}}Vtbl())
+    inst.IID = GUID{{.Name}}
+    inst.Callback = callback
+
+    return inst
+}
