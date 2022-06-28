@@ -5,5 +5,76 @@
 //nolint
 package foundation
 
+import (
+	"unsafe"
+
+	"github.com/go-ole/go-ole"
+)
+
+/*
+#include <stdint.h>
+
+// Note: these functions have a different signature but because they are only
+// used as function pointers (and never called) and because they use C name
+// mangling, the signature doesn't really matter.
+void winrt_TypedEventHandler_Invoke(void);
+void winrt_TypedEventHandler_QueryInterface(void);
+
+// This is the contract the functions below should adhere to:
+// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+
+static uint64_t winrt_TypedEventHandler_AddRef(void) {
+	// This is safe, see winrt_TypedEventHandler_Release.
+	return 2;
+}
+
+static uint64_t winrt_TypedEventHandler_Release(void) {
+	// Pretend there is one reference left.
+	// The docs say:
+	// > This value is intended to be used only for test purposes.
+	// Also see:
+	// https://docs.microsoft.com/en-us/archive/msdn-magazine/2013/august/windows-with-c-the-windows-runtime-application-model
+	return 1;
+}
+
+// The Vtable structure for WinRT TypedEventHandler interfaces.
+typedef struct {
+	void *QueryInterface;
+	void *AddRef;
+	void *Release;
+	void *Invoke;
+} TypedEventHandlerVtbl_t;
+
+// The Vtable itself. It can be kept constant.
+static const TypedEventHandlerVtbl_t winrt_TypedEventHandlerVtbl = {
+	(void*)winrt_TypedEventHandler_QueryInterface,
+	(void*)winrt_TypedEventHandler_AddRef,
+	(void*)winrt_TypedEventHandler_Release,
+	(void*)winrt_TypedEventHandler_Invoke,
+};
+
+// A small helper function to get the Vtable.
+const TypedEventHandlerVtbl_t * winrt_getTypedEventHandlerVtbl(void) {
+	return &winrt_TypedEventHandlerVtbl;
+}
+*/
+import "C"
+
+const GUIDTypedEventHandler string = "9de1c534-6ae1-11e0-84e1-18a905bcc53f"
+
 type TypedEventHandler struct {
+	ole.IUnknown
+	IID      *ole.GUID
+	Callback TypedEventHandlerCallback
+}
+
+type TypedEventHandlerCallback func(sender interface{}, args interface{})
+
+func NewTypedEventHandler(callback TypedEventHandlerCallback) *TypedEventHandler {
+	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
+	inst.RawVTable = (*interface{})(C.winrt_getTypedEventHandlerVtbl())
+	inst.IID = GUIDTypedEventHandler
+	inst.Callback = callback
+
+	return inst
 }

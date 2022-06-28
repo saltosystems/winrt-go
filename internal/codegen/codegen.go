@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -14,6 +15,12 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+// Delegate constants
+const (
+	invokeMethodName = "Invoke"
+)
+
+// Custom Attributes
 const (
 	attributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
 	attributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
@@ -27,7 +34,7 @@ type generator struct {
 
 	logger log.Logger
 
-	genData *genData
+	genDataFiles []*genDataFile
 
 	mdStore *winmd.Store
 }
@@ -78,54 +85,60 @@ func (g *generator) generate(typeDef *winmd.TypeDef) error {
 	}
 
 	// get data & execute templates
-
 	if err := g.loadCodeGenData(typeDef); err != nil {
 		return err
 	}
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", g.genData); err != nil {
-		return err
-	}
 
-	// create file & write contents
-	folder := typeToFolder(typeDef.TypeNamespace, typeDef.TypeName)
-	filename := folder + "/" + typeFilename(typeDef.TypeName)
-	err = os.MkdirAll(folder, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	file, err := os.Create(filepath.Clean(filename))
-	if err != nil {
-		return err
-	}
-	defer func() { _ = file.Close() }()
+	for _, fData := range g.genDataFiles {
+		fData.Data.ComputeImports(typeDef)
 
-	// use go imports to cleanup imports
-	goimported, err := imports.Process(filename, buf.Bytes(), nil)
-	if err != nil {
-		// write unimported  source code to file as a debugging mechanism
-		_, _ = file.Write(buf.Bytes())
-		return err
-	}
+		var buf bytes.Buffer
+		if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", fData.Data); err != nil {
+			return err
+		}
 
-	// format the output source code
-	formatted, err := format.Source(goimported)
-	if err != nil {
-		// write unformatted source code to file as a debugging mechanism
-		_, _ = file.Write(goimported)
-		return err
-	}
+		// create file & write contents
+		filename := fData.Filename
+		parts := strings.Split(fData.Filename, "/")
+		folder := strings.Join(parts[:len(parts)-1], "/")
+		err = os.MkdirAll(folder, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(filepath.Clean(filename))
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
 
-	// and write it to file
-	_, err = file.Write(formatted)
+		// use go imports to cleanup imports
+		goimported, err := imports.Process(filename, buf.Bytes(), nil)
+		if err != nil {
+			// write unimported  source code to file as a debugging mechanism
+			_, _ = file.Write(buf.Bytes())
+			return err
+		}
+
+		// format the output source code
+		formatted, err := format.Source(goimported)
+		if err != nil {
+			// write unformatted source code to file as a debugging mechanism
+			_, _ = file.Write(goimported)
+			return err
+		}
+
+		// and write it to file
+		_, err = file.Write(formatted)
+		if err != nil {
+			return err
+		}
+	}
 
 	return err
 }
 
 func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
-	g.genData = &genData{
-		Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
-	}
+	f := g.addFile(typeDef, "")
 
 	switch {
 	case g.isInterface(typeDef):
@@ -139,7 +152,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		g.genData.Interfaces = append(g.genData.Interfaces, *iface)
+		f.Data.Interfaces = append(f.Data.Interfaces, *iface)
 	case g.isEnum(typeDef):
 		_ = level.Info(g.logger).Log("msg", "generating enum", "enum", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -147,7 +160,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		g.genData.Enums = append(g.genData.Enums, *enum)
+		f.Data.Enums = append(f.Data.Enums, *enum)
 	case g.isStruct(typeDef):
 		_ = level.Info(g.logger).Log("msg", "generating struct", "struct", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -155,7 +168,16 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		g.genData.Structs = append(g.genData.Structs, *genStruct)
+		f.Data.Structs = append(f.Data.Structs, *genStruct)
+	case g.isDelegate(typeDef):
+		delegate, err := g.createGenDelegate(typeDef)
+		if err != nil {
+			return err
+		}
+		f.Data.Delegates = append(f.Data.Delegates, *delegate)
+
+		exportsFile := g.addFile(typeDef, "_exports")
+		exportsFile.Data.DelegateExports = append(f.Data.DelegateExports, *delegate)
 	default:
 		_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -163,12 +185,24 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		g.genData.Classes = append(g.genData.Classes, *class)
+		f.Data.Classes = append(f.Data.Classes, *class)
 	}
 
 	return nil
 }
 
+func (g *generator) addFile(typeDef *winmd.TypeDef, suffix string) *genDataFile {
+	folder := typeToFolder(typeDef.TypeNamespace, typeDef.TypeName)
+	filename := folder + "/" + typeFilename(typeDef.TypeName) + suffix + ".go"
+	f := genDataFile{
+		Filename: filename,
+		Data: genData{
+			Package: typePackage(typeDef.TypeNamespace, typeDef.TypeName),
+		},
+	}
+	g.genDataFiles = append(g.genDataFiles, &f)
+	return &f
+}
 func (g *generator) isInterface(typeDef *winmd.TypeDef) bool {
 	return typeDef.Flags.Interface()
 }
@@ -179,6 +213,20 @@ func (g *generator) isEnum(typeDef *winmd.TypeDef) bool {
 		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
 		return false
 	}
+	return ok
+}
+
+func (g *generator) isDelegate(typeDef *winmd.TypeDef) bool {
+	if !(typeDef.Flags.Public() && typeDef.Flags.Sealed()) {
+		return false
+	}
+
+	ok, err := typeDef.Extends("System.MulticastDelegate")
+	if err != nil {
+		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+
 	return ok
 }
 
@@ -231,6 +279,8 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
+	requiredImports := make([]genImport, 0)
+
 	exclusiveInterfaceTypes := make([]*winmd.TypeDef, 0)
 	// true => interface requires activation, false => interface is implemented by this class
 	activatedInterfaces := make(map[string]bool)
@@ -243,10 +293,11 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 	implInterfaces := make([]string, 0, len(interfaces))
 	for _, iface := range interfaces {
 		// the interface needs to be implemented by this class
+		requiredImports = append(requiredImports, genImport{iface.Namespace, iface.Name})
+
 		pkg := ""
 		if typeDef.TypeNamespace != iface.Namespace {
 			pkg = typePackage(iface.Namespace, iface.Name) + "."
-			g.addImportFor(iface.Namespace, iface.Name)
 		}
 
 		ifaceTypeDef, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name)
@@ -338,6 +389,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 
 	return &genClass{
 		Name:                typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		RequiresImports:     requiredImports,
 		FullyQualifiedName:  typeDef.TypeNamespace + "." + typeDef.TypeName,
 		ImplInterfaces:      implInterfaces,
 		ExclusiveInterfaces: exclusiveGenInterfaces,
@@ -426,18 +478,63 @@ func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) 
 			return nil, err
 		}
 
-		goFieldType := fieldType.GoParamString(curPkg)
-
 		// Struct fields must be fundamental types, enums, or other structs
 		genFields = append(genFields, &genParam{
 			Name: cleanReservedWords(f.Name),
-			Type: goFieldType,
+			Type: fieldType.GoParamString(curPkg),
 		})
 	}
 
 	return &genStruct{
 		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		Fields: genFields,
+	}, nil
+}
+
+//https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#delegates
+func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, error) {
+	// FieldList: must be empty
+	// MethodList: An index into the MethodDef table (ECMA II.22.26), marking the first of a contiguous run of methods owned by this type.
+	// Delegates' TypeDef rows must have a GuidAttribute
+	guid, err := g.typeGUID(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
+	// Delegates have exactly two MethodDef table entries. The first defines a constructor.
+	methods, err := typeDef.ResolveMethodList(typeDef.Ctx())
+	if err != nil {
+		return nil, err
+	}
+
+	if len(methods) != 2 {
+		return nil, fmt.Errorf("delegate %s has more than two methods", typeDef.TypeNamespace+"."+typeDef.TypeName)
+	}
+
+	// This constructor is a compatibility marker. WinRT Delegates have no such constructor method.
+
+	// We only care about the invoke method
+	invokeMethod := methods[1]
+	if invokeMethod.Name != invokeMethodName {
+		return nil, fmt.Errorf("found method '%s' on delegate %s but expected '%s'",
+			invokeMethod.Name,
+			typeDef.TypeNamespace+"."+typeDef.TypeName,
+			invokeMethodName,
+		)
+	}
+
+	// this is going to be used to define the callback type. We don't
+	// really need the whole function, only its input parameters,
+	// so we can reuse the logic used for getting them.
+	f, err := g.genFuncFromMethod(typeDef, &invokeMethod, "", false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &genDelegate{
+		Name:     typeDefGoName(typeDef.TypeName, true),
+		GUID:     guid,
+		InParams: f.InParams,
 	}, nil
 }
 
@@ -474,12 +571,6 @@ func extractClassFromBlob(blob []byte) string {
 	return string(class)
 }
 
-func (g *generator) addImportFor(ns, name string) {
-	folder := typeToFolder(ns, name)
-	i := "github.com/saltosystems/winrt-go/" + folder
-	g.genData.Imports = append(g.genData.Imports, i)
-}
-
 func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool) ([]genFunc, error) {
 	var genFuncs []genFunc
 
@@ -506,6 +597,7 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 }
 
 func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
+	requiredImports := make([]genImport, 0)
 	// add the type imports to the top of the file
 	// only if the method is going to be implemented
 	implement := g.shouldImplementMethod(methodDef)
@@ -542,21 +634,13 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 				p.DefaultValue = p.genDefaultValue.GoParamString(curPackage)
 			}
 
-			if p.genType.Namespace == "" {
-				// no import required
-				continue
-			}
-
-			typePkg := typePackage(p.genType.Namespace, p.genType.Name)
-			if curPackage != typePkg {
-				// imports are addded globally
-				g.addImportFor(p.genType.Namespace, p.genType.Name)
-			}
+			requiredImports = append(requiredImports, genImport{p.genType.Namespace, p.genType.Name})
 		}
 	}
 
 	return &genFunc{
 		Name:               methodDef.Name,
+		RequiresImports:    requiredImports,
 		Implement:          implement,
 		InParams:           params,
 		ReturnParam:        retParam,
@@ -624,6 +708,7 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 	}
 
 	genParams := make([]*genParam, 0)
+
 	for i, e := range mr.Params {
 		elType, err := g.elementType(typeDef.Ctx(), e)
 		if err != nil {
@@ -687,81 +772,94 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
 		return &genParamReference{
-			Name:      "bool",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "bool",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_CHAR:
 		return &genParamReference{
-			Name:      "byte",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "byte",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_I1:
 		return &genParamReference{
-			Name:      "int8",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "int8",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_U1:
 		return &genParamReference{
-			Name:      "uint8",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "uint8",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_I2:
 		return &genParamReference{
-			Name:      "int16",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "int16",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_U2:
 		return &genParamReference{
-			Name:      "uint16",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "uint16",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_I4:
 		return &genParamReference{
-			Name:      "int32",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "int32",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_U4:
 		return &genParamReference{
-			Name:      "uint32",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "uint32",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_I8:
 		return &genParamReference{
-			Name:      "int64",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "int64",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_U8:
 		return &genParamReference{
-			Name:      "uint64",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "uint64",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_R4:
 		return &genParamReference{
-			Name:      "float32",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "float32",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_R8:
 		return &genParamReference{
-			Name:      "float64",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "float64",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_STRING:
 		return &genParamReference{
-			Name:      "string",
-			Namespace: "",
-			IsPointer: false,
+			Name:        "string",
+			Namespace:   "",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_GENERICINST:
 		fallthrough
@@ -772,9 +870,10 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			return nil, err
 		}
 		return &genParamReference{
-			Name:      name,
-			Namespace: namespace,
-			IsPointer: true,
+			Name:        name,
+			Namespace:   namespace,
+			IsPointer:   true,
+			IsPrimitive: false,
 		}, nil
 	case types.ELEMENT_TYPE_VALUETYPE:
 		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
@@ -782,9 +881,17 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			return nil, err
 		}
 		return &genParamReference{
-			Namespace: namespace,
-			Name:      name,
-			IsPointer: false,
+			Namespace:   namespace,
+			Name:        name,
+			IsPointer:   false,
+			IsPrimitive: false,
+		}, nil
+	case types.ELEMENT_TYPE_VAR:
+		return &genParamReference{
+			Namespace:   "",
+			Name:        "interface{}",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
@@ -795,9 +902,10 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
 		return &genParamReference{
-			Namespace: "",
-			Name:      "false",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "false",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_CHAR:
 		fallthrough
@@ -817,31 +925,35 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 		fallthrough
 	case types.ELEMENT_TYPE_U8:
 		return &genParamReference{
-			Namespace: "",
-			Name:      "0",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "0",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_R4:
 		fallthrough
 	case types.ELEMENT_TYPE_R8:
 		return &genParamReference{
-			Namespace: "",
-			Name:      "0.0",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "0.0",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_STRING:
 		return &genParamReference{
-			Namespace: "",
-			Name:      "\"\"",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "\"\"",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_GENERICINST:
 		fallthrough
 	case types.ELEMENT_TYPE_CLASS:
 		return &genParamReference{
-			Namespace: "",
-			Name:      "nil",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "nil",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	case types.ELEMENT_TYPE_VALUETYPE:
 		// we need to get the underlying type (enum, struct, etc...)
@@ -869,19 +981,30 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 				Namespace: elementTypeDef.TypeNamespace,
 				Name:      enumName(elementTypeDef.TypeName, fields[1].Name),
 				IsPointer: false,
+
+				IsPrimitive: false,
 			}, nil
 		} else if g.isStruct(elementTypeDef) {
 			return &genParamReference{
-				Namespace: elementTypeDef.TypeNamespace,
-				Name:      elementTypeDef.TypeName + "{}",
-				IsPointer: false,
+				Namespace:   elementTypeDef.TypeNamespace,
+				Name:        elementTypeDef.TypeName + "{}",
+				IsPointer:   false,
+				IsPrimitive: false,
 			}, nil
 		}
 
 		return &genParamReference{
-			Namespace: "",
-			Name:      "nil",
-			IsPointer: false,
+			Namespace:   "",
+			Name:        "nil",
+			IsPointer:   false,
+			IsPrimitive: true,
+		}, nil
+	case types.ELEMENT_TYPE_VAR:
+		return &genParamReference{
+			Namespace:   "",
+			Name:        "nil",
+			IsPointer:   false,
+			IsPrimitive: true,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
