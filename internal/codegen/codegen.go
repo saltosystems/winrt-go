@@ -254,11 +254,6 @@ func (g *generator) validateInterface(typeDef *winmd.TypeDef) error {
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#interfaces
 func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivation bool) (*genInterface, error) {
-	if isParameterizedName(typeDef.TypeName) {
-		// parameterized interfaces are not yet supported
-		return nil, fmt.Errorf("could not generate %s.%s, parameterized interfaces are not yet supported", typeDef.TypeNamespace, typeDef.TypeName)
-	}
-
 	funcs, err := g.getGenFuncs(typeDef, requiresActivation)
 	if err != nil {
 		return nil, err
@@ -279,9 +274,9 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
-	requiredImports := make([]genImport, 0)
+	var requiredImports []genImport
+	var exclusiveInterfaceTypes []*winmd.TypeDef
 
-	exclusiveInterfaceTypes := make([]*winmd.TypeDef, 0)
 	// true => interface requires activation, false => interface is implemented by this class
 	activatedInterfaces := make(map[string]bool)
 
@@ -362,7 +357,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 	}
 
 	// generate exclusive interfaces
-	exclusiveGenInterfaces := make([]genInterface, 0)
+	var exclusiveGenInterfaces []genInterface
 	for _, iface := range exclusiveInterfaceTypes {
 		requiresActivation := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
 		isExtendedInterface := !requiresActivation
@@ -427,7 +422,7 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 	enumType := elType.Name
 
 	// After the enum value definition comes a field definition for each of the values in the enumeration.
-	enumValues := make([]genEnumValue, 0, len(fields[1:]))
+	var enumValues []genEnumValue
 	for i, field := range fields[1:] {
 		if !(field.Flags.Public() && field.Flags.Static() && field.Flags.Literal() && field.Flags.HasDefault()) {
 			return nil,
@@ -597,43 +592,53 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 }
 
 func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
-	requiredImports := make([]genImport, 0)
 	// add the type imports to the top of the file
 	// only if the method is going to be implemented
 	implement := g.shouldImplementMethod(methodDef)
-	var params []*genParam
-	var retParam *genParam
-	if implement {
-		paramsCandidate, err := g.getInParameters(typeDef, methodDef)
-		if err != nil {
-			return nil, err
+
+	if !implement {
+		// if we don't implement the method, we don't need to gather
+		// all the information, just the name of it is enough
+		return &genFunc{
+			Name:               methodDef.Name,
+			RequiresImports:    nil,
+			Implement:          implement,
+			InParams:           nil,
+			ReturnParams:       nil,
+			FuncOwner:          typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+			ExclusiveTo:        exclusiveTo,
+			RequiresActivation: requiresActivation,
+		}, nil
+	}
+
+	params, err := g.getInParameters(typeDef, methodDef)
+	if err != nil {
+		return nil, err
+	}
+
+	retParams, err := g.getReturnParameters(typeDef, methodDef)
+	if err != nil {
+		return nil, err
+	}
+
+	// iterate over all parameters (in or out) to gather the required imports
+	// and calculate if we need the package name when referencing a type
+	// based on the current package
+	var allImplementedParams []*genParam
+	allImplementedParams = append(allImplementedParams, params...)
+	allImplementedParams = append(allImplementedParams, retParams...)
+
+	curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
+	var requiredImports []genImport
+	for _, p := range allImplementedParams {
+		if p.genType != nil {
+			p.Type = p.genType.GoParamString(curPackage)
 		}
-		params = paramsCandidate
-
-		retParamCandidate, err := g.getReturnParameters(typeDef, methodDef)
-		if err != nil {
-			return nil, err
-		}
-		retParam = retParamCandidate
-
-		curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
-
-		implementedParams := make([]*genParam, 0)
-		implementedParams = append(implementedParams, params...)
-		if retParam != nil {
-			implementedParams = append(implementedParams, retParam)
+		if p.genDefaultValue != nil {
+			p.DefaultValue = p.genDefaultValue.GoParamString(curPackage)
 		}
 
-		// for each param
-		for _, p := range implementedParams {
-			// compute the reference in the code (with vs without package, pointer, ...)
-			if p.genType != nil {
-				p.Type = p.genType.GoParamString(curPackage)
-			}
-			if p.genDefaultValue != nil {
-				p.DefaultValue = p.genDefaultValue.GoParamString(curPackage)
-			}
-
+		if !p.genType.IsPrimitive {
 			requiredImports = append(requiredImports, genImport{p.genType.Namespace, p.genType.Name})
 		}
 	}
@@ -643,7 +648,7 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		RequiresImports:    requiredImports,
 		Implement:          implement,
 		InParams:           params,
-		ReturnParam:        retParam,
+		ReturnParams:       retParams,
 		FuncOwner:          typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		ExclusiveTo:        exclusiveTo,
 		RequiresActivation: requiresActivation,
@@ -707,9 +712,18 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 		return nil, err
 	}
 
-	genParams := make([]*genParam, 0)
-
+	var genParams []*genParam
 	for i, e := range mr.Params {
+		param := getParamByIndex(params, uint16(i+1))
+		if param == nil {
+			_ = level.Error(g.logger).Log("msg", "Parameter with index not found", "index", i+1)
+			continue // do not fail
+		}
+
+		if !param.Flags.In() {
+			continue
+		}
+
 		elType, err := g.elementType(typeDef.Ctx(), e)
 		if err != nil {
 			return nil, err
@@ -718,6 +732,7 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 			Name:      cleanReservedWords(getParamName(params, uint16(i+1))),
 			Type:      "",
 			IsPointer: elType.IsPointer,
+			IsArray:   elType.IsArray,
 			genType:   elType,
 		})
 	}
@@ -725,7 +740,7 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) (*genParam, error) {
+func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := methodDef.Signature.Reader()
@@ -734,9 +749,50 @@ func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types
 		return nil, err
 	}
 
+	// get out parameters
+	params, err := methodDef.ResolveParamList(typeDef.Ctx())
+	if err != nil {
+		return nil, err
+	}
+
+	var genParams []*genParam
+	for i, e := range methodSignature.Params {
+		param := getParamByIndex(params, uint16(i+1))
+		if param == nil {
+			_ = level.Error(g.logger).Log("msg", "Parameter with index not found", "index", i+1)
+			continue // do not fail
+		}
+
+		if !param.Flags.Out() {
+			continue
+		}
+
+		elType, err := g.elementType(typeDef.Ctx(), e)
+		if err != nil {
+			return nil, err
+		}
+
+		defValue, err := g.elementDefaultValue(typeDef.Ctx(), e)
+		if err != nil {
+			return nil, err
+		}
+
+		genParams = append(genParams, &genParam{
+			Name:            cleanReservedWords(getParamName(params, uint16(i+1))),
+			IsPointer:       elType.IsPointer,
+			IsArray:         elType.IsArray,
+			Type:            "",
+			genType:         elType,
+			DefaultValue:    "",
+			genDefaultValue: defValue,
+		})
+	}
+
+	// Append return parameter
+
 	// ignore void types
 	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_VOID {
-		return nil, nil
+		return genParams, nil
 	}
 
 	elType, err := g.elementType(typeDef.Ctx(), methodSignature.Return)
@@ -749,23 +805,36 @@ func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types
 		return nil, err
 	}
 
-	return &genParam{
-		Name:            "",
-		Type:            "",
+	genParams = append(genParams, &genParam{
+		// return param always has an index of zero
+		Name:            "out",
 		IsPointer:       elType.IsPointer,
+		IsArray:         elType.IsArray,
+		Type:            "",
 		genType:         elType,
 		DefaultValue:    "",
 		genDefaultValue: defValue,
-	}, nil
+	})
+
+	return genParams, nil
 }
 
 func getParamName(params []types.Param, i uint16) string {
 	for _, p := range params {
-		if p.Flags.In() && p.Sequence == i {
+		if p.Sequence == i {
 			return p.Name
 		}
 	}
-	return "__ERROR__"
+	return fmt.Sprintf("__ERROR_PARAM_%d_NOT_FOUND__", i)
+}
+
+func getParamByIndex(params []types.Param, i uint16) *types.Param {
+	for _, p := range params {
+		if p.Sequence == i {
+			return &p
+		}
+	}
+	return nil
 }
 
 func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamReference, error) {
@@ -894,6 +963,13 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			IsPointer:   false,
 			IsPrimitive: false,
 		}, nil
+	case types.ELEMENT_TYPE_SZARRAY:
+		//A single-dimensional, zero lower-bound array type modifier
+
+		// e.Type.SZArray.Elem should be non-nil
+		param, err := g.elementType(ctx, *e.Type.SZArray.Elem)
+		param.IsArray = true
+		return param, err
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
 	}
@@ -908,32 +984,18 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 			IsPointer:   false,
 			IsPrimitive: true,
 		}, nil
-	case types.ELEMENT_TYPE_CHAR:
-		fallthrough
-	case types.ELEMENT_TYPE_I1:
-		fallthrough
-	case types.ELEMENT_TYPE_U1:
-		fallthrough
-	case types.ELEMENT_TYPE_I2:
-		fallthrough
-	case types.ELEMENT_TYPE_U2:
-		fallthrough
-	case types.ELEMENT_TYPE_I4:
-		fallthrough
-	case types.ELEMENT_TYPE_U4:
-		fallthrough
-	case types.ELEMENT_TYPE_I8:
-		fallthrough
-	case types.ELEMENT_TYPE_U8:
+	case types.ELEMENT_TYPE_CHAR,
+		types.ELEMENT_TYPE_I1, types.ELEMENT_TYPE_U1,
+		types.ELEMENT_TYPE_I2, types.ELEMENT_TYPE_U2,
+		types.ELEMENT_TYPE_I4, types.ELEMENT_TYPE_U4,
+		types.ELEMENT_TYPE_I8, types.ELEMENT_TYPE_U8:
 		return &genParamReference{
 			Namespace:   "",
 			Name:        "0",
 			IsPointer:   false,
 			IsPrimitive: true,
 		}, nil
-	case types.ELEMENT_TYPE_R4:
-		fallthrough
-	case types.ELEMENT_TYPE_R8:
+	case types.ELEMENT_TYPE_R4, types.ELEMENT_TYPE_R8:
 		return &genParamReference{
 			Namespace:   "",
 			Name:        "0.0",
@@ -947,9 +1009,8 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*g
 			IsPointer:   false,
 			IsPrimitive: true,
 		}, nil
-	case types.ELEMENT_TYPE_GENERICINST:
-		fallthrough
-	case types.ELEMENT_TYPE_CLASS:
+	case types.ELEMENT_TYPE_CLASS,
+		types.ELEMENT_TYPE_GENERICINST, types.ELEMENT_TYPE_SZARRAY:
 		return &genParamReference{
 			Namespace:   "",
 			Name:        "nil",
