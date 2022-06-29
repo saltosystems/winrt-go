@@ -15,12 +15,7 @@
 
     {{- /* return params */ -}}
 
-    (
-    {{- if .ReturnParam -}}
-        {{.ReturnParam.Type}},
-    {{- end -}}
-    error)
-
+    ({{ range .ReturnParams}}{{.Type}},{{ end }}error)
 
     {{- /* method body */ -}}
 

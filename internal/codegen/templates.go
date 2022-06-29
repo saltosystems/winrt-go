@@ -105,7 +105,7 @@ type genFunc struct {
 	Implement       bool
 	FuncOwner       string
 	InParams        []*genParam
-	ReturnParam     *genParam // this may be nil
+	ReturnParams    []*genParam // this may be empty
 
 	// ExclusiveTo is the name of the class that this function is exclusive to.
 	// The funcion will be called statically using the RoGetActivationFactory function.
@@ -119,6 +119,11 @@ type genImport struct {
 }
 
 func (i genImport) ToGoImport() string {
+	if !strings.Contains(i.Namespace, ".") && i.Namespace != "Windows" {
+		// This is probably a built-in package
+		return i.Namespace
+	}
+
 	folder := typeToFolder(i.Namespace, i.Name)
 	return "github.com/saltosystems/winrt-go/" + folder
 }
@@ -128,6 +133,7 @@ type genParam struct {
 	Type         string
 	IsPointer    bool
 	DefaultValue string
+	IsArray      bool
 
 	genType         *genParamReference
 	genDefaultValue *genParamReference
@@ -138,6 +144,7 @@ type genParamReference struct {
 	Name        string
 	IsPointer   bool
 	IsPrimitive bool
+	IsArray     bool
 }
 
 func (g genParamReference) GoParamString(callerPackage string) string {
