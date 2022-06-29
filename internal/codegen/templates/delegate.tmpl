@@ -61,8 +61,8 @@ type {{.Name}}Callback func({{range .InParams -}}
 
 func New{{.Name}}(callback TypedEventHandlerCallback) *{{.Name}} {
     inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
-    inst.RawVTable = (*interface{})(C.winrt_get{{.Name}}Vtbl())
-    inst.IID = GUID{{.Name}}
+    inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
+    inst.IID = ole.NewGUID(GUID{{.Name}})
     inst.Callback = callback
 
     return inst
