@@ -68,12 +68,12 @@ type TypedEventHandler struct {
 	Callback TypedEventHandlerCallback
 }
 
-type TypedEventHandlerCallback func(sender interface{}, args interface{})
+type TypedEventHandlerCallback func(sender unsafe.Pointer, args unsafe.Pointer)
 
 func NewTypedEventHandler(callback TypedEventHandlerCallback) *TypedEventHandler {
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
-	inst.RawVTable = (*interface{})(C.winrt_getTypedEventHandlerVtbl())
-	inst.IID = GUIDTypedEventHandler
+	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
+	inst.IID = ole.NewGUID(GUIDTypedEventHandler)
 	inst.Callback = callback
 
 	return inst

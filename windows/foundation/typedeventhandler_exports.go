@@ -11,6 +11,11 @@ import (
 	"github.com/go-ole/go-ole"
 )
 
+/*
+#include <stddef.h>
+*/
+import "C"
+
 //export winrt_TypedEventHandler_QueryInterface
 func winrt_TypedEventHandler_QueryInterface(instancePtr, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
 	// This function must adhere to the QueryInterface defined here:
@@ -35,7 +40,6 @@ func winrt_TypedEventHandler_QueryInterface(instancePtr, iidPtr unsafe.Pointer, 
 func winrt_TypedEventHandler_Invoke(instancePtr, senderPtr, argsPtr unsafe.Pointer) uintptr {
 	// See the quote above.
 	instance := (*TypedEventHandler)(instancePtr)
-	argsInspectable := (*ole.IInspectable)(argsPtr)
-	instance.Callback(instance, argsInspectable)
+	instance.Callback(instancePtr, argsPtr)
 	return ole.S_OK
 }

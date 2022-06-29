@@ -887,11 +887,12 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 			IsPrimitive: false,
 		}, nil
 	case types.ELEMENT_TYPE_VAR:
+		// A class variable type modifier
 		return &genParamReference{
-			Namespace:   "",
-			Name:        "interface{}",
+			Namespace:   "unsafe",
+			Name:        "Pointer",
 			IsPointer:   false,
-			IsPrimitive: true,
+			IsPrimitive: false,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)

@@ -1,3 +1,7 @@
+/*
+#include <stddef.h>
+*/
+import "C"
 
 //export winrt_{{.Name}}_QueryInterface
 func winrt_{{.Name}}_QueryInterface(instancePtr, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
@@ -23,7 +27,6 @@ func winrt_{{.Name}}_QueryInterface(instancePtr, iidPtr unsafe.Pointer, ppvObjec
 func winrt_{{.Name}}_Invoke(instancePtr, senderPtr, argsPtr unsafe.Pointer) uintptr {
 	// See the quote above.
 	instance := (*{{.Name}})(instancePtr)
-	argsInspectable := (*ole.IInspectable)(argsPtr)
-	instance.Callback(instance, argsInspectable)
+	instance.Callback(instancePtr, argsPtr)
 	return ole.S_OK
 }
