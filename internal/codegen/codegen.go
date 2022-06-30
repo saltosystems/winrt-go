@@ -419,7 +419,7 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 		return nil, err
 	}
 	// this will always be a primitive type, so we can just use the name
-	enumType := elType.Name
+	enumType := elType.name
 
 	// After the enum value definition comes a field definition for each of the values in the enumeration.
 	var enumValues []genEnumValue
@@ -475,8 +475,10 @@ func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) 
 
 		// Struct fields must be fundamental types, enums, or other structs
 		genFields = append(genFields, &genParam{
-			Name: cleanReservedWords(f.Name),
-			Type: fieldType.GoParamString(curPkg),
+			callerPackage: curPkg,
+			varName:       cleanReservedWords(f.Name),
+			IsOut:         false,
+			Type:          fieldType,
 		})
 	}
 
@@ -611,12 +613,14 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		}, nil
 	}
 
-	params, err := g.getInParameters(typeDef, methodDef)
+	curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
+
+	params, err := g.getInParameters(curPackage, typeDef, methodDef)
 	if err != nil {
 		return nil, err
 	}
 
-	retParams, err := g.getReturnParameters(typeDef, methodDef)
+	retParams, err := g.getReturnParameters(curPackage, typeDef, methodDef)
 	if err != nil {
 		return nil, err
 	}
@@ -628,18 +632,11 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 	allImplementedParams = append(allImplementedParams, params...)
 	allImplementedParams = append(allImplementedParams, retParams...)
 
-	curPackage := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
 	var requiredImports []genImport
 	for _, p := range allImplementedParams {
-		if p.genType != nil {
-			p.Type = p.genType.GoParamString(curPackage)
-		}
-		if p.genDefaultValue != nil {
-			p.DefaultValue = p.genDefaultValue.GoParamString(curPackage)
-		}
-
-		if !p.genType.IsPrimitive {
-			requiredImports = append(requiredImports, genImport{p.genType.Namespace, p.genType.Name})
+		p.callerPackage = curPackage
+		if !p.Type.IsPrimitive {
+			requiredImports = append(requiredImports, genImport{p.Type.namespace, p.Type.name})
 		}
 	}
 
@@ -697,7 +694,7 @@ func guidBlobToString(b types.Blob) (string, error) {
 		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
-func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
+func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 
 	params, err := methodDef.ResolveParamList(typeDef.Ctx())
 	if err != nil {
@@ -720,8 +717,34 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 			continue // do not fail
 		}
 
-		if !param.Flags.In() {
-			continue
+		// When encoding an Array parameter for any interface member type, the array length
+		// parameter that immediately precedes the array parameter is omitted from both the
+		// MethodDefSig blob as well from as the params table. => so we need to add it manually.
+		// Do not trust e.IsArray variable, it's only true for the ELEMENT_TYPE_ARRAY, it
+		if e.Type.Kind == types.ELEMENT_TYPE_SZARRAY || e.Type.Kind == types.ELEMENT_TYPE_ARRAY {
+			// The direction of the array parameter is directly encoded in metadata.The direction of
+			// the array length parameter may be inferred as follows.
+			//   - If the array parameter is an in parameter, the array length parameter must also
+			//     be an IN PARAMETER.
+			//   - If the array parameter is an out parameter and is not carrying the BYREF
+			//     marker, the array length is an IN PARAMETER.
+
+			//   - If the array parameter is an out parameter and carries the BYREF marker, the
+			//     array length is an OUT PARAMETER.
+			sizeIsOutParam := param.Flags.Out() && e.ByRef
+			genParams = append(genParams, &genParam{
+				callerPackage: curPackage,
+				varName:       cleanReservedWords(param.Name + "Size"),
+				IsOut:         sizeIsOutParam,
+				Type: &genParamType{
+					namespace:    "",
+					name:         "uint32",
+					defaultValue: genDefaultValue{"0", true},
+					IsPrimitive:  true,
+					IsPointer:    false,
+					IsArray:      false,
+				},
+			})
 		}
 
 		elType, err := g.elementType(typeDef.Ctx(), e)
@@ -729,18 +752,17 @@ func (g *generator) getInParameters(typeDef *winmd.TypeDef, methodDef *types.Met
 			return nil, err
 		}
 		genParams = append(genParams, &genParam{
-			Name:      cleanReservedWords(getParamName(params, uint16(i+1))),
-			Type:      "",
-			IsPointer: elType.IsPointer,
-			IsArray:   elType.IsArray,
-			genType:   elType,
+			callerPackage: curPackage,
+			varName:       cleanReservedWords(getParamName(params, uint16(i+1))),
+			IsOut:         param.Flags.Out(),
+			Type:          elType,
 		})
 	}
 
 	return genParams, nil
 }
 
-func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
+func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := methodDef.Signature.Reader()
@@ -749,46 +771,7 @@ func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types
 		return nil, err
 	}
 
-	// get out parameters
-	params, err := methodDef.ResolveParamList(typeDef.Ctx())
-	if err != nil {
-		return nil, err
-	}
-
 	var genParams []*genParam
-	for i, e := range methodSignature.Params {
-		param := getParamByIndex(params, uint16(i+1))
-		if param == nil {
-			_ = level.Error(g.logger).Log("msg", "Parameter with index not found", "index", i+1)
-			continue // do not fail
-		}
-
-		if !param.Flags.Out() {
-			continue
-		}
-
-		elType, err := g.elementType(typeDef.Ctx(), e)
-		if err != nil {
-			return nil, err
-		}
-
-		defValue, err := g.elementDefaultValue(typeDef.Ctx(), e)
-		if err != nil {
-			return nil, err
-		}
-
-		genParams = append(genParams, &genParam{
-			Name:            cleanReservedWords(getParamName(params, uint16(i+1))),
-			IsPointer:       elType.IsPointer,
-			IsArray:         elType.IsArray,
-			Type:            "",
-			genType:         elType,
-			DefaultValue:    "",
-			genDefaultValue: defValue,
-		})
-	}
-
-	// Append return parameter
 
 	// ignore void types
 	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_VOID {
@@ -800,20 +783,12 @@ func (g *generator) getReturnParameters(typeDef *winmd.TypeDef, methodDef *types
 		return nil, err
 	}
 
-	defValue, err := g.elementDefaultValue(typeDef.Ctx(), methodSignature.Return)
-	if err != nil {
-		return nil, err
-	}
-
 	genParams = append(genParams, &genParam{
 		// return param always has an index of zero
-		Name:            "out",
-		IsPointer:       elType.IsPointer,
-		IsArray:         elType.IsArray,
-		Type:            "",
-		genType:         elType,
-		DefaultValue:    "",
-		genDefaultValue: defValue,
+		callerPackage: curPackage,
+		varName:       "out",
+		IsOut:         false, // notrelevant
+		Type:          elType,
 	})
 
 	return genParams, nil
@@ -837,98 +812,124 @@ func getParamByIndex(params []types.Param, i uint16) *types.Param {
 	return nil
 }
 
-func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamReference, error) {
+func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamType, error) {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
-		return &genParamReference{
-			Name:        "bool",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "bool",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_CHAR:
-		return &genParamReference{
-			Name:        "byte",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "byte",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_I1:
-		return &genParamReference{
-			Name:        "int8",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "int8",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_U1:
-		return &genParamReference{
-			Name:        "uint8",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "uint8",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_I2:
-		return &genParamReference{
-			Name:        "int16",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "int16",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_U2:
-		return &genParamReference{
-			Name:        "uint16",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "uint16",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_I4:
-		return &genParamReference{
-			Name:        "int32",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "int32",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_U4:
-		return &genParamReference{
-			Name:        "uint32",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "uint32",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_I8:
-		return &genParamReference{
-			Name:        "int64",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "int64",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_U8:
-		return &genParamReference{
-			Name:        "uint64",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "uint64",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_R4:
-		return &genParamReference{
-			Name:        "float32",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "float32",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_R8:
-		return &genParamReference{
-			Name:        "float64",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "float64",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_STRING:
-		return &genParamReference{
-			Name:        "string",
-			Namespace:   "",
-			IsPointer:   false,
-			IsPrimitive: true,
+		return &genParamType{
+			namespace:    "",
+			name:         "string",
+			IsPointer:    false,
+			IsPrimitive:  true,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_GENERICINST:
 		fallthrough
@@ -938,30 +939,36 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 		if err != nil {
 			return nil, err
 		}
-		return &genParamReference{
-			Name:        name,
-			Namespace:   namespace,
-			IsPointer:   true,
-			IsPrimitive: false,
+		return &genParamType{
+			namespace:    namespace,
+			name:         name,
+			IsPointer:    true,
+			IsPrimitive:  false,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_VALUETYPE:
 		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
 			return nil, err
 		}
-		return &genParamReference{
-			Namespace:   namespace,
-			Name:        name,
-			IsPointer:   false,
-			IsPrimitive: false,
+		return &genParamType{
+			namespace:    namespace,
+			name:         name,
+			IsPointer:    false,
+			IsPrimitive:  false,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_VAR:
 		// A class variable type modifier
-		return &genParamReference{
-			Namespace:   "unsafe",
-			Name:        "Pointer",
-			IsPointer:   false,
-			IsPrimitive: false,
+		return &genParamType{
+			namespace:    "unsafe",
+			name:         "Pointer",
+			IsPointer:    false,
+			IsPrimitive:  false,
+			IsArray:      false,
+			defaultValue: g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_SZARRAY:
 		//A single-dimensional, zero lower-bound array type modifier
@@ -969,106 +976,63 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamR
 		// e.Type.SZArray.Elem should be non-nil
 		param, err := g.elementType(ctx, *e.Type.SZArray.Elem)
 		param.IsArray = true
+		// override default val
+		param.defaultValue = genDefaultValue{"nil", true}
+
 		return param, err
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
 	}
 }
 
-func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) (*genParamReference, error) {
+func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) genDefaultValue {
 	switch e.Type.Kind {
 	case types.ELEMENT_TYPE_BOOLEAN:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "false",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"false", true}
 	case types.ELEMENT_TYPE_CHAR,
 		types.ELEMENT_TYPE_I1, types.ELEMENT_TYPE_U1,
 		types.ELEMENT_TYPE_I2, types.ELEMENT_TYPE_U2,
 		types.ELEMENT_TYPE_I4, types.ELEMENT_TYPE_U4,
 		types.ELEMENT_TYPE_I8, types.ELEMENT_TYPE_U8:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "0",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"0", true}
 	case types.ELEMENT_TYPE_R4, types.ELEMENT_TYPE_R8:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "0.0",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"0.0", true}
 	case types.ELEMENT_TYPE_STRING:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "\"\"",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"\"\"", true}
 	case types.ELEMENT_TYPE_CLASS,
 		types.ELEMENT_TYPE_GENERICINST, types.ELEMENT_TYPE_SZARRAY:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "nil",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"nil", true}
 	case types.ELEMENT_TYPE_VALUETYPE:
 		// we need to get the underlying type (enum, struct, etc...)
 		namespace, name, err := ctx.ResolveTypeDefOrRefName(e.Type.TypeDef.Index)
 		if err != nil {
-			return nil, err
+			return genDefaultValue{"__ERROR_" + err.Error(), true}
 		}
 		elementTypeDef, err := g.mdStore.TypeDefByName(namespace + "." + name)
 		if err != nil {
-			return nil, err
+			return genDefaultValue{"__ERROR_" + err.Error(), true}
 		}
 
 		if g.isEnum(elementTypeDef) {
 			// return the first enum value
 			fields, err := elementTypeDef.ResolveFieldList(ctx)
 			if err != nil {
-				return nil, err
+				return genDefaultValue{"__ERROR_" + err.Error(), true}
 			}
 			// the first field defines the enum type, the second is the first value
 			if len(fields) < 2 {
-				return nil, fmt.Errorf("enum %v has no fields", namespace+"."+name)
+				return genDefaultValue{"__ERROR_" + fmt.Errorf("enum %v has no fields", namespace+"."+name).Error(), true}
 			}
 
-			return &genParamReference{
-				Namespace: elementTypeDef.TypeNamespace,
-				Name:      enumName(elementTypeDef.TypeName, fields[1].Name),
-				IsPointer: false,
-
-				IsPrimitive: false,
-			}, nil
+			return genDefaultValue{enumName(elementTypeDef.TypeName, fields[1].Name), false}
 		} else if g.isStruct(elementTypeDef) {
-			return &genParamReference{
-				Namespace:   elementTypeDef.TypeNamespace,
-				Name:        elementTypeDef.TypeName + "{}",
-				IsPointer:   false,
-				IsPrimitive: false,
-			}, nil
+			return genDefaultValue{elementTypeDef.TypeName + "{}", false}
 		}
 
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "nil",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"nil", true}
 	case types.ELEMENT_TYPE_VAR:
-		return &genParamReference{
-			Namespace:   "",
-			Name:        "nil",
-			IsPointer:   false,
-			IsPrimitive: true,
-		}, nil
+		return genDefaultValue{"nil", true}
 	default:
-		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
+		return genDefaultValue{"__ERROR_" + fmt.Errorf("unsupported element type: %v", e.Type.Kind).Error(), true}
 	}
 }

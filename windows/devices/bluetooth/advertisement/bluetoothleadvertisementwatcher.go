@@ -105,7 +105,7 @@ func (v *iBluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.Typed
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().AddReceived,
 		uintptr(unsafe.Pointer(v)),       // this
-		uintptr(unsafe.Pointer(handler)), // in handler
+		uintptr(unsafe.Pointer(handler)), // in foundation.TypedEventHandler
 		uintptr(unsafe.Pointer(&out)),    // out foundation.EventRegistrationToken
 	)
 
@@ -121,7 +121,7 @@ func (v *iBluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedE
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().AddStopped,
 		uintptr(unsafe.Pointer(v)),       // this
-		uintptr(unsafe.Pointer(handler)), // in handler
+		uintptr(unsafe.Pointer(handler)), // in foundation.TypedEventHandler
 		uintptr(unsafe.Pointer(&out)),    // out foundation.EventRegistrationToken
 	)
 

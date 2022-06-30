@@ -1,0 +1,5 @@
+{{if .Type.IsArray}}[]{{end -}}
+{{if .Type.IsPointer}}*{{end -}}
+{{.GoTypeName -}}
+
+{{- /*remove trailing whitespace*/ -}}
