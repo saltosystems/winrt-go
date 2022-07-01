@@ -60,10 +60,10 @@ type {{.Name}}Callback func({{- range .InParams -}}
 	{{template "variabletype.tmpl" . }},
 {{- end -}})
 
-func New{{.Name}}(callback TypedEventHandlerCallback) *{{.Name}} {
+func New{{.Name}}(iid *ole.GUID, callback TypedEventHandlerCallback) *{{.Name}} {
     inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
     inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
-    inst.IID = ole.NewGUID(GUID{{.Name}})
+    inst.IID = iid
     inst.Callback = callback
 
     return inst
