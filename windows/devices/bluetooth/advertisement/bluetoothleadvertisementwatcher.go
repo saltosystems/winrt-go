@@ -116,6 +116,20 @@ func (v *iBluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.Typed
 	return out, nil
 }
 
+func (v *iBluetoothLEAdvertisementWatcher) RemoveReceived(token foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveReceived,
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&token)), // in token
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}
+
 func (v *iBluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
 	var out foundation.EventRegistrationToken
 	hr, _, _ := syscall.SyscallN(
@@ -130,6 +144,20 @@ func (v *iBluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedE
 	}
 
 	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveStopped,
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&token)), // in token
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
 
 const GUIDiBluetoothLEAdvertisementWatcher2 string = "01bf26bc-b164-5805-90a3-e8a7997ff225"
