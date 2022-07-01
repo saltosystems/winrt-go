@@ -7,6 +7,11 @@ if err != nil {
 v := (*{{.FuncOwner}})(unsafe.Pointer(inspectable))
 
 {{end -}}
+{{range .InParams -}}
+    {{ if not .IsOut }}{{continue}}{{ end -}}
+    var {{.GoVarName}} {{template "variabletype.tmpl" . -}}
+    {{if .Type.IsArray}} = make({{template "variabletype.tmpl" . -}}, {{.GoVarName}}Size){{end}}
+{{end -}}
 {{range .ReturnParams -}}var {{.GoVarName}} {{template "variabletype.tmpl" .}}
 {{end -}}
 hr, _, _ := syscall.SyscallN(
@@ -18,7 +23,8 @@ hr, _, _ := syscall.SyscallN(
     {{end -}}
     {{range .InParams -}}
         {{if .IsOut -}}
-            uintptr(unsafe.Pointer({{.GoVarName}})),   // out {{.GoTypeName}}
+            {{/* Arrays need to pass a pointer to their first element */ -}}
+            uintptr(unsafe.Pointer(&{{.GoVarName}}{{if .Type.IsArray }}[0]{{end}})),   // out {{.GoTypeName}}
         {{else if .Type.IsPointer -}}
             uintptr(unsafe.Pointer({{.GoVarName}})),   // in {{.GoTypeName}}
         {{else if .Type.IsPrimitive -}}
@@ -33,8 +39,10 @@ hr, _, _ := syscall.SyscallN(
 
 
 if hr != 0 {
-    return {{range .ReturnParams }}{{.GoDefaultValue}}, {{end}}ole.NewError(hr)
+    return {{range .InParams}}{{if .IsOut}}{{.GoDefaultValue}}, {{end}}{{end -}}
+        {{range .ReturnParams }}{{.GoDefaultValue}}, {{end}}ole.NewError(hr)
 }
 
-return {{range .ReturnParams }}{{.GoVarName}},{{end}} nil
+return {{range .InParams}}{{if .IsOut}}{{.GoVarName}}, {{end}}{{end -}}
+    {{range .ReturnParams }}{{.GoVarName}},{{end}} nil
 {{- /* remove trailing white space*/ -}}

@@ -53,17 +53,18 @@ func (v *IDataReader) VTable() *IDataReaderVtbl {
 	return (*IDataReaderVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func (v *IDataReader) ReadBytes(valueSize uint32, value *[]uint8) error {
+func (v *IDataReader) ReadBytes(valueSize uint32) ([]uint8, error) {
+	var value []uint8 = make([]uint8, valueSize)
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().ReadBytes,
-		uintptr(unsafe.Pointer(v)),     // this
-		uintptr(valueSize),             // in valueSize
-		uintptr(unsafe.Pointer(value)), // out uint8
+		uintptr(unsafe.Pointer(v)),         // this
+		uintptr(valueSize),                 // in valueSize
+		uintptr(unsafe.Pointer(&value[0])), // out uint8
 	)
 
 	if hr != 0 {
-		return ole.NewError(hr)
+		return nil, ole.NewError(hr)
 	}
 
-	return nil
+	return value, nil
 }
