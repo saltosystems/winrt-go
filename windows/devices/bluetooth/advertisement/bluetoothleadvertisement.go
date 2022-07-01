@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 )
 
 type BluetoothLEAdvertisement struct {
@@ -58,6 +59,51 @@ func (v *iBluetoothLEAdvertisement) GetLocalName() (string, error) {
 
 	if hr != 0 {
 		return "", ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisement) GetServiceUuids() (*collections.IVector, error) {
+	var out *collections.IVector
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetServiceUuids,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out collections.IVector
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisement) GetManufacturerData() (*collections.IVector, error) {
+	var out *collections.IVector
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetManufacturerData,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out collections.IVector
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisement) GetDataSections() (*collections.IVector, error) {
+	var out *collections.IVector
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetDataSections,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out collections.IVector
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
 	}
 
 	return out, nil
