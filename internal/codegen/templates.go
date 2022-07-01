@@ -128,42 +128,68 @@ func (i genImport) ToGoImport() string {
 	return "github.com/saltosystems/winrt-go/" + folder
 }
 
-type genParam struct {
-	Name         string
-	Type         string
-	IsPointer    bool
-	DefaultValue string
-	IsArray      bool
-
-	genType         *genParamReference
-	genDefaultValue *genParamReference
+// some of the variables are not public to avoid using them
+// by mistake in the code.
+type genDefaultValue struct {
+	value       string
+	isPrimitive bool
 }
 
-type genParamReference struct {
-	Namespace   string
-	Name        string
+// some of the variables are not public to avoid using them
+// by mistake in the code.
+type genParamType struct {
+	namespace string
+	name      string
+
 	IsPointer   bool
-	IsPrimitive bool
 	IsArray     bool
+	IsPrimitive bool
+
+	defaultValue genDefaultValue
 }
 
-func (g genParamReference) GoParamString(callerPackage string) string {
-	if g.IsPrimitive {
-		return g.Name
+// some of the variables are not public to avoid using them
+// by mistake in the code.
+type genParam struct {
+	callerPackage string
+
+	varName string
+
+	Type *genParamType
+
+	IsOut bool
+}
+
+func (g *genParam) GoVarName() string {
+	return typeNameToGoName(g.varName, true) // assume all are public
+}
+
+func (g *genParam) GoTypeName() string {
+	if g.Type.IsPrimitive {
+		return g.Type.name
 	}
 
-	name := typeNameToGoName(g.Name, true) // assume all are public
+	name := typeNameToGoName(g.Type.name, true) // assume all are public
 
-	pkg := typePackage(g.Namespace, g.Name)
-	if callerPackage != pkg {
+	pkg := typePackage(g.Type.namespace, g.Type.name)
+	if g.callerPackage != pkg {
 		name = pkg + "." + name
 	}
 
-	if g.IsPointer {
-		name = "*" + name
+	return name
+}
+
+func (g *genParam) GoDefaultValue() string {
+	if g.Type.defaultValue.isPrimitive {
+		return g.Type.defaultValue.value
 	}
 
-	return name
+	pkg := typePackage(g.Type.namespace, g.Type.name)
+	if g.callerPackage != pkg {
+		return pkg + "." + g.Type.defaultValue.value
+	}
+
+	return g.Type.defaultValue.value
 }
 
 type genStruct struct {

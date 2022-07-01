@@ -3,19 +3,20 @@
         (v *{{.FuncOwner}})
     {{- end -}}
 
-    {{funcName .}}
+    {{funcName .}} 
+    
+    {{- /* in params */ -}}
 
-    {{- /* input params */ -}}
-
-    (
+    ( 
     {{- range .InParams -}}
-        {{.Name}} {{.Type}},
+        {{.GoVarName}} {{ if .IsOut }}*{{ end -}}
+        {{template "variabletype.tmpl" . }},
     {{- end -}}
     )
 
     {{- /* return params */ -}}
 
-    ({{ range .ReturnParams}}{{.Type}},{{ end }}error)
+    ( {{range .ReturnParams}}{{template "variabletype.tmpl" . }},{{end}} error )
 
     {{- /* method body */ -}}
 

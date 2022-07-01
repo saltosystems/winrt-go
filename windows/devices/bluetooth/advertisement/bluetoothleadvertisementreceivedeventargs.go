@@ -73,7 +73,7 @@ func (v *iBluetoothLEAdvertisementReceivedEventArgs) GetAdvertisement() (*Blueto
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetAdvertisement,
 		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(unsafe.Pointer(&out)), // out *BluetoothLEAdvertisement
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEAdvertisement
 	)
 
 	if hr != 0 {
