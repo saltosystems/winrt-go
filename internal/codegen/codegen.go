@@ -734,8 +734,9 @@ func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, m
 			sizeIsOutParam := param.Flags.Out() && e.ByRef
 			genParams = append(genParams, &genParam{
 				callerPackage: curPackage,
-				varName:       cleanReservedWords(param.Name + "Size"),
-				IsOut:         sizeIsOutParam,
+				// Do not change this without also changing the code in the templates
+				varName: cleanReservedWords(param.Name + "Size"),
+				IsOut:   sizeIsOutParam,
 				Type: &genParamType{
 					namespace:    "",
 					name:         "uint32",

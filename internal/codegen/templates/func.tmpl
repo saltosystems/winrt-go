@@ -9,14 +9,18 @@
 
     ( 
     {{- range .InParams -}}
-        {{.GoVarName}} {{ if .IsOut }}*{{ end -}}
-        {{template "variabletype.tmpl" . }},
+        {{/*do not include out parameters, they are used as return values*/ -}}
+        {{ if .IsOut }}{{continue}}{{ end -}}
+        {{.GoVarName}} {{template "variabletype.tmpl" . }},
     {{- end -}}
     )
 
     {{- /* return params */ -}}
 
-    ( {{range .ReturnParams}}{{template "variabletype.tmpl" . }},{{end}} error )
+    ( {{range .InParams -}}
+        {{ if not .IsOut }}{{continue}}{{ end -}}
+        {{template "variabletype.tmpl" . }},{{end -}}
+    {{range .ReturnParams}}{{template "variabletype.tmpl" . }},{{end}} error )
 
     {{- /* method body */ -}}
 
