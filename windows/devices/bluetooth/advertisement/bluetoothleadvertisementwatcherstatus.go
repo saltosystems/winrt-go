@@ -7,6 +7,8 @@ package advertisement
 
 type BluetoothLEAdvertisementWatcherStatus int32
 
+const SignatureBluetoothLEAdvertisementWatcherStatus string = "enum(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcherStatus;i4)"
+
 const (
 	BluetoothLEAdvertisementWatcherStatusCreated  BluetoothLEAdvertisementWatcherStatus = 0
 	BluetoothLEAdvertisementWatcherStatusStarted  BluetoothLEAdvertisementWatcherStatus = 1

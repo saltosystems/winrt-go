@@ -13,6 +13,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
+const SignatureBluetoothLEAdvertisementWatcher string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcher;{a6ac336f-f3d3-4297-8d6c-c81ea6623f40})"
+
 type BluetoothLEAdvertisementWatcher struct {
 	iBluetoothLEAdvertisementWatcher
 
@@ -28,6 +30,7 @@ func NewBluetoothLEAdvertisementWatcher() (*BluetoothLEAdvertisementWatcher, err
 }
 
 const GUIDiBluetoothLEAdvertisementWatcher string = "a6ac336f-f3d3-4297-8d6c-c81ea6623f40"
+const SignatureiBluetoothLEAdvertisementWatcher string = "{a6ac336f-f3d3-4297-8d6c-c81ea6623f40}"
 
 type iBluetoothLEAdvertisementWatcher struct {
 	ole.IInspectable
@@ -161,6 +164,7 @@ func (v *iBluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.EventR
 }
 
 const GUIDiBluetoothLEAdvertisementWatcher2 string = "01bf26bc-b164-5805-90a3-e8a7997ff225"
+const SignatureiBluetoothLEAdvertisementWatcher2 string = "{01bf26bc-b164-5805-90a3-e8a7997ff225}"
 
 type iBluetoothLEAdvertisementWatcher2 struct {
 	ole.IInspectable

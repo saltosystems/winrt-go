@@ -13,6 +13,7 @@ import (
 )
 
 const GUIDIDataReader string = "e2b50029-b4c1-4314-a4b8-fb813a2f275e"
+const SignatureIDataReader string = "{e2b50029-b4c1-4314-a4b8-fb813a2f275e}"
 
 type IDataReader struct {
 	ole.IInspectable

@@ -13,6 +13,7 @@ import (
 )
 
 const GUIDIVector string = "913337e9-11a1-4345-a3a2-4e7f956e222d"
+const SignatureIVector string = "{913337e9-11a1-4345-a3a2-4e7f956e222d}"
 
 type IVector struct {
 	ole.IInspectable

@@ -13,6 +13,7 @@ import (
 )
 
 const GUIDIBuffer string = "905a0fe0-bc53-11df-8c49-001e4fc686da"
+const SignatureIBuffer string = "{905a0fe0-bc53-11df-8c49-001e4fc686da}"
 
 type IBuffer struct {
 	ole.IInspectable

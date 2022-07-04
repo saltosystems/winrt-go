@@ -5,6 +5,8 @@
 //nolint
 package foundation
 
+const SignatureEventRegistrationToken string = "struct(Windows.Foundation.EventRegistrationToken;i8)"
+
 type EventRegistrationToken struct {
 	Value int64
 }

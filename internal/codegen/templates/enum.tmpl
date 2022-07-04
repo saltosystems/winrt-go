@@ -1,4 +1,5 @@
 type {{.Name}} {{.Type}}
+const Signature{{.Name}} string = "{{.Signature}}"
 
 const ({{range .Values}}
     {{.Name}} {{$.Name}} = {{.Value}}{{end}}

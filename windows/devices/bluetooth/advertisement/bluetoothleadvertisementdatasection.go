@@ -12,6 +12,8 @@ import (
 	"github.com/go-ole/go-ole"
 )
 
+const SignatureBluetoothLEAdvertisementDataSection string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementDataSection;{d7213314-3a43-40f9-b6f0-92bfefc34ae3})"
+
 type BluetoothLEAdvertisementDataSection struct {
 	iBluetoothLEAdvertisementDataSection
 }
@@ -25,6 +27,7 @@ func NewBluetoothLEAdvertisementDataSection() (*BluetoothLEAdvertisementDataSect
 }
 
 const GUIDiBluetoothLEAdvertisementDataSection string = "d7213314-3a43-40f9-b6f0-92bfefc34ae3"
+const SignatureiBluetoothLEAdvertisementDataSection string = "{d7213314-3a43-40f9-b6f0-92bfefc34ae3}"
 
 type iBluetoothLEAdvertisementDataSection struct {
 	ole.IInspectable

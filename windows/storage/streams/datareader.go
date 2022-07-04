@@ -13,6 +13,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
+const SignatureDataReader string = "rc(Windows.Storage.Streams.DataReader;{e2b50029-b4c1-4314-a4b8-fb813a2f275e})"
+
 type DataReader struct {
 	IDataReader
 
@@ -20,6 +22,7 @@ type DataReader struct {
 }
 
 const GUIDiDataReaderStatics string = "11fcbfc8-f93a-471b-b121-f379e349313c"
+const SignatureiDataReaderStatics string = "{11fcbfc8-f93a-471b-b121-f379e349313c}"
 
 type iDataReaderStatics struct {
 	ole.IInspectable

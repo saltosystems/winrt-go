@@ -12,11 +12,14 @@ import (
 	"github.com/go-ole/go-ole"
 )
 
+const SignatureBuffer string = "rc(Windows.Storage.Streams.Buffer;{905a0fe0-bc53-11df-8c49-001e4fc686da})"
+
 type Buffer struct {
 	IBuffer
 }
 
 const GUIDiBufferFactory string = "71af914d-c10f-484b-bc50-14bc623b3a27"
+const SignatureiBufferFactory string = "{71af914d-c10f-484b-bc50-14bc623b3a27}"
 
 type iBufferFactory struct {
 	ole.IInspectable

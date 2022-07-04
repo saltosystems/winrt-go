@@ -13,6 +13,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 )
 
+const SignatureBluetoothLEAdvertisement string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisement;{066fb2b7-33d1-4e7d-8367-cf81d0f79653})"
+
 type BluetoothLEAdvertisement struct {
 	iBluetoothLEAdvertisement
 }
@@ -26,6 +28,7 @@ func NewBluetoothLEAdvertisement() (*BluetoothLEAdvertisement, error) {
 }
 
 const GUIDiBluetoothLEAdvertisement string = "066fb2b7-33d1-4e7d-8367-cf81d0f79653"
+const SignatureiBluetoothLEAdvertisement string = "{066fb2b7-33d1-4e7d-8367-cf81d0f79653}"
 
 type iBluetoothLEAdvertisement struct {
 	ole.IInspectable
