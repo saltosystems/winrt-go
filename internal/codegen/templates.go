@@ -46,9 +46,10 @@ func (g *genData) ComputeImports(typeDef *winmd.TypeDef) {
 }
 
 type genInterface struct {
-	Name  string
-	GUID  string
-	Funcs []genFunc
+	Name      string
+	GUID      string
+	Signature string
+	Funcs     []genFunc
 }
 
 func (g *genInterface) GetRequiredImports() []genImport {
@@ -61,6 +62,7 @@ func (g *genInterface) GetRequiredImports() []genImport {
 
 type genClass struct {
 	Name                string
+	Signature           string
 	RequiresImports     []genImport
 	FullyQualifiedName  string
 	ImplInterfaces      []string
@@ -85,14 +87,16 @@ func (g *genClass) GetRequiredImports() []genImport {
 type genDelegate struct {
 	Name        string
 	GUID        string
+	Signature   string
 	InParams    []*genParam
 	ReturnParam *genParam // this may be nil
 }
 
 type genEnum struct {
-	Name   string
-	Type   string
-	Values []genEnumValue
+	Name      string
+	Type      string
+	Signature string
+	Values    []genEnumValue
 }
 type genEnumValue struct {
 	Name  string
@@ -193,8 +197,9 @@ func (g *genParam) GoDefaultValue() string {
 }
 
 type genStruct struct {
-	Name   string
-	Fields []*genParam
+	Name      string
+	Signature string
+	Fields    []*genParam
 }
 
 //go:embed templates/*

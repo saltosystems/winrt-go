@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/internal/winmd"
 	"github.com/tdakkota/win32metadata/types"
 	"golang.org/x/tools/imports"
@@ -222,10 +223,16 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 		return nil, err
 	}
 
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genInterface{
-		Name:  typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
-		GUID:  guid,
-		Funcs: funcs,
+		Name:      typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		GUID:      guid,
+		Signature: typeSig,
+		Funcs:     funcs,
 	}, nil
 }
 
@@ -339,8 +346,14 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 		}
 	}
 
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genClass{
 		Name:                typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		Signature:           typeSig,
 		RequiresImports:     requiredImports,
 		FullyQualifiedName:  typeDef.TypeNamespace + "." + typeDef.TypeName,
 		ImplInterfaces:      implInterfaces,
@@ -401,10 +414,16 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 		})
 	}
 
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genEnum{
-		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
-		Type:   enumType,
-		Values: enumValues,
+		Name:      typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		Type:      enumType,
+		Signature: typeSig,
+		Values:    enumValues,
 	}, nil
 }
 
@@ -439,9 +458,15 @@ func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) 
 		})
 	}
 
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genStruct{
-		Name:   typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
-		Fields: genFields,
+		Name:      typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
+		Signature: typeSig,
+		Fields:    genFields,
 	}, nil
 }
 
@@ -485,10 +510,16 @@ func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, err
 		return nil, err
 	}
 
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, err
+	}
+
 	return &genDelegate{
-		Name:     typeDefGoName(typeDef.TypeName, true),
-		GUID:     guid,
-		InParams: f.InParams,
+		Name:      typeDefGoName(typeDef.TypeName, true),
+		GUID:      guid,
+		Signature: typeSig,
+		InParams:  f.InParams,
 	}, nil
 }
 
@@ -955,4 +986,163 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) gen
 	default:
 		return genDefaultValue{"__ERROR_" + fmt.Errorf("unsupported element type: %v", e.Type.Kind).Error(), true}
 	}
+}
+
+func (g *generator) Signature(typeDef *winmd.TypeDef) (string, error) {
+	// Signature generation defined in
+	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winrt-type-system#guid-generation-for-parameterized-types
+
+	// type_signature => (only relevant types included)
+	//   - interface_signature
+	//   - delegate_signature
+	//   - interface_group_signature
+	//   - runtime_class_signature
+	//   - struct_signature
+	//   - enum_signature
+	//   # these instance signatures cannot be generated until instantiated
+	//   - pinterface_instance_signature
+	//   - pdelegate_instance_signature
+	//
+	// Where:
+	//   - interface_signature => guid
+	//   - delegate_signature => "delegate(" guid ")"
+	//   - interface_group_signature => "ig(" interface_group_name ";" default_interface ")"
+	//   - runtime_class_signature => "rc(" runtime_class_name ";" default_interface ")"
+	//   - struct_signature => "struct(" struct_name ";" args ")"
+	//   - enum_signature => "enum(" enum_name ";" enum_underlying_type ")"
+
+	switch {
+	case typeDef.IsInterface():
+		// interface_signature => guid
+		guid, err := typeDef.GUID()
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("{%s}", guid), nil
+	case typeDef.IsEnum():
+		// enum_signature => "enum(" enum_name ";" enum_underlying_type ")"
+		// the first field should be the underlying integer type of the enum. It must have the following flags:
+		fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
+		if err != nil {
+			return "", err
+		}
+		fieldSig, err := fields[0].Signature.Reader().Field(typeDef.Ctx())
+		if err != nil {
+			return "", err
+		}
+
+		enumType := primitiveTypeSignature(fieldSig.Field.Type.Kind)
+		return fmt.Sprintf(`enum(%s;%s)`, typeDef.TypeNamespace+"."+typeDef.TypeName, enumType), nil
+	case typeDef.IsStruct():
+		// struct_signature => "struct(" struct_name ";" args ")"
+		fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
+		if err != nil {
+			return "", err
+		}
+		structArgs := []string{}
+		for _, f := range fields {
+			fSig, err := f.Signature.Reader().Field(typeDef.Ctx())
+			if err != nil {
+				return "", err
+			}
+
+			// Struct fields must be fundamental types, enums, or other structs
+			if fSig.Field.Type.Kind == types.ELEMENT_TYPE_VALUETYPE {
+				// this is an struct or an enum
+				fieldType, err := g.elementType(typeDef.Ctx(), fSig.Field)
+				if err != nil {
+					return "", err
+				}
+
+				t, err := g.mdStore.TypeDefByName(fieldType.namespace + "." + fieldType.name)
+				if err != nil {
+					return "", err
+				}
+
+				sig, err := g.Signature(t)
+				if err != nil {
+					return "", err
+				}
+				structArgs = append(structArgs, sig)
+			} else {
+				// Assume everything else is a fundamental type
+				structArgs = append(structArgs, primitiveTypeSignature(fSig.Field.Type.Kind))
+			}
+		}
+		return fmt.Sprintf(`struct(%s;%s)`, typeDef.TypeNamespace+"."+typeDef.TypeName, strings.Join(structArgs, ";")), nil
+	case typeDef.IsDelegate():
+		//delegate_signature => "delegate(" guid ")"
+		guid, err := typeDef.GUID()
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf(`delegate({%s})`, guid), nil
+	case typeDef.IsRuntimeClass():
+		// runtime_class_signature => "rc(" runtime_class_name ";" default_interface ")"
+
+		// Runtime classes must specify the DefaultAttribute on exactly one of their InterfaceImpl rows.
+		defaultInterface, err := typeDef.GetTypeDefAttributeWithType(winmd.AttributeTypeDefaultAttribute)
+		if err != nil {
+			// Some classes (Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcher) do not
+			// define a runtime class. I'm not sure if this is an error in the IDL or the documentation.
+			// But we are not going to fail here. Just default to the first implemented interface
+			ifs, ifserr := typeDef.GetImplementedInterfaces()
+			if ifserr != nil {
+				return "", err
+			}
+
+			if len(ifs) == 0 {
+				return "", err
+			}
+			defaultInterface = []byte(ifs[0].Namespace + "." + ifs[0].Name)
+		}
+
+		td, err := g.mdStore.TypeDefByName(string(defaultInterface))
+		if err != nil {
+			return "", err
+		}
+
+		defaultInterfaceSignature, err := g.Signature(td)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf(`rc(%s;%s)`, typeDef.TypeNamespace+"."+typeDef.TypeName, defaultInterfaceSignature), nil
+	default:
+		return "", fmt.Errorf("unsupported type: %v", typeDef.TypeName)
+	}
+}
+
+func primitiveTypeSignature(kind types.ElementTypeKind) string {
+	switch kind {
+	// Fundamental types
+	case types.ELEMENT_TYPE_U1:
+		return winrt.SignatureUInt8
+	case types.ELEMENT_TYPE_U2:
+		return winrt.SignatureUInt16
+	case types.ELEMENT_TYPE_U4:
+		return winrt.SignatureUInt32
+	case types.ELEMENT_TYPE_U8:
+		return winrt.SignatureUInt64
+	case types.ELEMENT_TYPE_I1:
+		return winrt.SignatureInt8
+	case types.ELEMENT_TYPE_I2:
+		return winrt.SignatureInt16
+	case types.ELEMENT_TYPE_I4:
+		return winrt.SignatureInt32
+	case types.ELEMENT_TYPE_I8:
+		return winrt.SignatureInt64
+	case types.ELEMENT_TYPE_R4:
+		return winrt.SignatureFloat32
+	case types.ELEMENT_TYPE_R8:
+		return winrt.SignatureFloat64
+	case types.ELEMENT_TYPE_BOOLEAN:
+		return winrt.SignatureBool
+	case types.ELEMENT_TYPE_CHAR:
+		return winrt.SignatureChar
+	case types.ELEMENT_TYPE_STRING:
+		return winrt.SignatureString
+	}
+	return ""
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/go-ole/go-ole"
 )
 
+const SignatureBluetoothLEAdvertisementReceivedEventArgs string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementReceivedEventArgs;{27987ddf-e596-41be-8d43-9e6731d4a913})"
+
 type BluetoothLEAdvertisementReceivedEventArgs struct {
 	iBluetoothLEAdvertisementReceivedEventArgs
 
@@ -19,6 +21,7 @@ type BluetoothLEAdvertisementReceivedEventArgs struct {
 }
 
 const GUIDiBluetoothLEAdvertisementReceivedEventArgs string = "27987ddf-e596-41be-8d43-9e6731d4a913"
+const SignatureiBluetoothLEAdvertisementReceivedEventArgs string = "{27987ddf-e596-41be-8d43-9e6731d4a913}"
 
 type iBluetoothLEAdvertisementReceivedEventArgs struct {
 	ole.IInspectable
@@ -84,6 +87,7 @@ func (v *iBluetoothLEAdvertisementReceivedEventArgs) GetAdvertisement() (*Blueto
 }
 
 const GUIDiBluetoothLEAdvertisementReceivedEventArgs2 string = "12d9c87b-0399-5f0e-a348-53b02b6b162e"
+const SignatureiBluetoothLEAdvertisementReceivedEventArgs2 string = "{12d9c87b-0399-5f0e-a348-53b02b6b162e}"
 
 type iBluetoothLEAdvertisementReceivedEventArgs2 struct {
 	ole.IInspectable

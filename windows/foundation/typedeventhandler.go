@@ -61,6 +61,7 @@ const TypedEventHandlerVtbl_t * winrt_getTypedEventHandlerVtbl(void) {
 import "C"
 
 const GUIDTypedEventHandler string = "9de1c534-6ae1-11e0-84e1-18a905bcc53f"
+const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a905bcc53f})"
 
 type TypedEventHandler struct {
 	ole.IUnknown

@@ -11,11 +11,14 @@ import (
 	"github.com/go-ole/go-ole"
 )
 
+const SignatureBluetoothLEAdvertisementWatcherStoppedEventArgs string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcherStoppedEventArgs;{dd40f84d-e7b9-43e3-9c04-0685d085fd8c})"
+
 type BluetoothLEAdvertisementWatcherStoppedEventArgs struct {
 	iBluetoothLEAdvertisementWatcherStoppedEventArgs
 }
 
 const GUIDiBluetoothLEAdvertisementWatcherStoppedEventArgs string = "dd40f84d-e7b9-43e3-9c04-0685d085fd8c"
+const SignatureiBluetoothLEAdvertisementWatcherStoppedEventArgs string = "{dd40f84d-e7b9-43e3-9c04-0685d085fd8c}"
 
 type iBluetoothLEAdvertisementWatcherStoppedEventArgs struct {
 	ole.IInspectable

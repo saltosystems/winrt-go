@@ -13,6 +13,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
+const SignatureBluetoothLEManufacturerData string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEManufacturerData;{912dba18-6963-4533-b061-4694dafb34e5})"
+
 type BluetoothLEManufacturerData struct {
 	iBluetoothLEManufacturerData
 }
@@ -26,6 +28,7 @@ func NewBluetoothLEManufacturerData() (*BluetoothLEManufacturerData, error) {
 }
 
 const GUIDiBluetoothLEManufacturerData string = "912dba18-6963-4533-b061-4694dafb34e5"
+const SignatureiBluetoothLEManufacturerData string = "{912dba18-6963-4533-b061-4694dafb34e5}"
 
 type iBluetoothLEManufacturerData struct {
 	ole.IInspectable
@@ -103,6 +106,7 @@ func (v *iBluetoothLEManufacturerData) SetData(value *streams.IBuffer) error {
 }
 
 const GUIDiBluetoothLEManufacturerDataFactory string = "c09b39f8-319a-441e-8de5-66a81e877a6c"
+const SignatureiBluetoothLEManufacturerDataFactory string = "{c09b39f8-319a-441e-8de5-66a81e877a6c}"
 
 type iBluetoothLEManufacturerDataFactory struct {
 	ole.IInspectable

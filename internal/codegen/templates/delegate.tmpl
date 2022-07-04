@@ -48,6 +48,7 @@ const {{.Name}}Vtbl_t * winrt_get{{.Name}}Vtbl(void) {
 import "C"
 
 const GUID{{.Name}} string = "{{.GUID}}"
+const Signature{{.Name}} string = "{{.Signature}}"
 
 type {{.Name}} struct {
 	ole.IUnknown
