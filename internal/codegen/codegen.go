@@ -20,14 +20,6 @@ const (
 	invokeMethodName = "Invoke"
 )
 
-// Custom Attributes
-const (
-	attributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
-	attributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
-	attributeTypeStaticAttribute      = "Windows.Foundation.Metadata.StaticAttribute"
-	attributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
-)
-
 type generator struct {
 	class        string
 	methodFilter *MethodFilter
@@ -141,7 +133,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 	f := g.addFile(typeDef, "")
 
 	switch {
-	case g.isInterface(typeDef):
+	case typeDef.IsInterface():
 		_ = level.Info(g.logger).Log("msg", "generating interface", "interface", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
 		if err := g.validateInterface(typeDef); err != nil {
@@ -153,7 +145,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 			return err
 		}
 		f.Data.Interfaces = append(f.Data.Interfaces, *iface)
-	case g.isEnum(typeDef):
+	case typeDef.IsEnum():
 		_ = level.Info(g.logger).Log("msg", "generating enum", "enum", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
 		enum, err := g.createGenEnum(typeDef)
@@ -161,7 +153,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 			return err
 		}
 		f.Data.Enums = append(f.Data.Enums, *enum)
-	case g.isStruct(typeDef):
+	case typeDef.IsStruct():
 		_ = level.Info(g.logger).Log("msg", "generating struct", "struct", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
 		genStruct, err := g.createGenStruct(typeDef)
@@ -169,7 +161,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 			return err
 		}
 		f.Data.Structs = append(f.Data.Structs, *genStruct)
-	case g.isDelegate(typeDef):
+	case typeDef.IsDelegate():
 		delegate, err := g.createGenDelegate(typeDef)
 		if err != nil {
 			return err
@@ -203,41 +195,6 @@ func (g *generator) addFile(typeDef *winmd.TypeDef, suffix string) *genDataFile 
 	g.genDataFiles = append(g.genDataFiles, &f)
 	return &f
 }
-func (g *generator) isInterface(typeDef *winmd.TypeDef) bool {
-	return typeDef.Flags.Interface()
-}
-
-func (g *generator) isEnum(typeDef *winmd.TypeDef) bool {
-	ok, err := typeDef.Extends("System.Enum")
-	if err != nil {
-		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
-		return false
-	}
-	return ok
-}
-
-func (g *generator) isDelegate(typeDef *winmd.TypeDef) bool {
-	if !(typeDef.Flags.Public() && typeDef.Flags.Sealed()) {
-		return false
-	}
-
-	ok, err := typeDef.Extends("System.MulticastDelegate")
-	if err != nil {
-		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
-		return false
-	}
-
-	return ok
-}
-
-func (g *generator) isStruct(typeDef *winmd.TypeDef) bool {
-	ok, err := typeDef.Extends("System.ValueType")
-	if err != nil {
-		_ = level.Error(g.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
-		return false
-	}
-	return ok
-}
 
 func (g *generator) validateInterface(typeDef *winmd.TypeDef) error {
 	// Any WinRT interface with private visibility must have a single ExclusiveToAttribute.
@@ -260,7 +217,7 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 	}
 
 	// Interfaces' TypeDef rows must have a GuidAttribute as well as a VersionAttribute.
-	guid, err := g.typeGUID(typeDef)
+	guid, err := typeDef.GUID()
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +271,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 
 	// Runtime classes have zero or more StaticAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
-	staticAttributeBlobs := typeDef.GetTypeDefAttributesWithType(attributeTypeStaticAttribute)
+	staticAttributeBlobs := typeDef.GetTypeDefAttributesWithType(winmd.AttributeTypeStaticAttribute)
 	for _, blob := range staticAttributeBlobs {
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found static interface", "class", class)
@@ -330,7 +287,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 
 	// Runtime classes have zero or more ActivatableAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#activation
-	activatableAttributeBlobs := typeDef.GetTypeDefAttributesWithType(attributeTypeActivatableAttribute)
+	activatableAttributeBlobs := typeDef.GetTypeDefAttributesWithType(winmd.AttributeTypeActivatableAttribute)
 	hasEmptyConstructor := false
 	for _, blob := range activatableAttributeBlobs {
 		// check for empty constructor
@@ -493,7 +450,7 @@ func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, err
 	// FieldList: must be empty
 	// MethodList: An index into the MethodDef table (ECMA II.22.26), marking the first of a contiguous run of methods owned by this type.
 	// Delegates' TypeDef rows must have a GuidAttribute
-	guid, err := g.typeGUID(typeDef)
+	guid, err := typeDef.GUID()
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +493,7 @@ func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, err
 }
 
 func (g *generator) interfaceIsExclusiveTo(typeDef *winmd.TypeDef) (string, bool) {
-	exclusiveToBlob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeExclusiveTo)
+	exclusiveToBlob, err := typeDef.GetTypeDefAttributeWithType(winmd.AttributeTypeExclusiveTo)
 	// an error here is fine, we just won't have the ExclusiveTo attribute
 	if err != nil {
 		return "", false
@@ -654,44 +611,6 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 
 func (g *generator) shouldImplementMethod(methodDef *types.MethodDef) bool {
 	return g.methodFilter.Filter(methodDef.Name)
-}
-
-func (g *generator) typeGUID(typeDef *winmd.TypeDef) (string, error) {
-	blob, err := typeDef.GetTypeDefAttributeWithType(attributeTypeGUID)
-	if err != nil {
-		return "", err
-	}
-	return guidBlobToString(blob)
-}
-
-// guidBlobToString converts an array into the textual representation of a GUID
-func guidBlobToString(b types.Blob) (string, error) {
-	// the guid is a blob of 20 bytes
-	if len(b) != 20 {
-		return "", fmt.Errorf("invalid GUID blob length: %d", len(b))
-	}
-
-	// that starts with 0100
-	if b[0] != 0x01 || b[1] != 0x00 {
-		return "", fmt.Errorf("invalid GUID blob header, expected '0x01 0x00' but found '0x%02x 0x%02x'", b[0], b[1])
-	}
-
-	// and ends with 0000
-	if b[18] != 0x00 || b[19] != 0x00 {
-		return "", fmt.Errorf("invalid GUID blob footer, expected '0x00 0x00' but found '0x%02x 0x%02x'", b[18], b[19])
-	}
-
-	guid := b[2 : len(b)-2]
-	// the string version has 5 parts separated by '-'
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%04x%08x",
-		// The first 3 are encoded as little endian
-		uint32(guid[0])|uint32(guid[1])<<8|uint32(guid[2])<<16|uint32(guid[3])<<24,
-		uint16(guid[4])|uint16(guid[5])<<8,
-		uint16(guid[6])|uint16(guid[7])<<8,
-		//the rest is not
-		uint16(guid[8])<<8|uint16(guid[9]),
-		uint16(guid[10])<<8|uint16(guid[11]),
-		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
 
 func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
@@ -1014,7 +933,7 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) gen
 			return genDefaultValue{"__ERROR_" + err.Error(), true}
 		}
 
-		if g.isEnum(elementTypeDef) {
+		if elementTypeDef.IsEnum() {
 			// return the first enum value
 			fields, err := elementTypeDef.ResolveFieldList(ctx)
 			if err != nil {
@@ -1026,7 +945,7 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) gen
 			}
 
 			return genDefaultValue{enumName(elementTypeDef.TypeName, fields[1].Name), false}
-		} else if g.isStruct(elementTypeDef) {
+		} else if elementTypeDef.IsStruct() {
 			return genDefaultValue{elementTypeDef.TypeName + "{}", false}
 		}
 

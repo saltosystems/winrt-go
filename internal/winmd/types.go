@@ -10,6 +10,15 @@ import (
 	"github.com/tdakkota/win32metadata/types"
 )
 
+// Custom Attributes
+const (
+	AttributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
+	AttributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
+	AttributeTypeStaticAttribute      = "Windows.Foundation.Metadata.StaticAttribute"
+	AttributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
+	AttributeTypeDefaultAttribute     = "Windows.Foundation.Metadata.DefaultAttribute"
+)
+
 // HasContext is a helper struct that holds the original context of a metadata element.
 type HasContext struct {
 	originalCtx *types.Context
@@ -232,4 +241,89 @@ func (typeDef *TypeDef) GetGenericParams() ([]*types.GenericParam, error) {
 	}
 
 	return params, nil
+}
+
+// IsInterface returns true if the type is an interface
+func (typeDef *TypeDef) IsInterface() bool {
+	return typeDef.Flags.Interface()
+}
+
+// IsEnum returns true if the type is an enum
+func (typeDef *TypeDef) IsEnum() bool {
+	ok, err := typeDef.Extends("System.Enum")
+	if err != nil {
+		_ = level.Error(typeDef.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+	return ok
+}
+
+// IsDelegate returns true if the type is a delegate
+func (typeDef *TypeDef) IsDelegate() bool {
+	if !(typeDef.Flags.Public() && typeDef.Flags.Sealed()) {
+		return false
+	}
+
+	ok, err := typeDef.Extends("System.MulticastDelegate")
+	if err != nil {
+		_ = level.Error(typeDef.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+
+	return ok
+}
+
+// IsStruct returns true if the type is a struct
+func (typeDef *TypeDef) IsStruct() bool {
+	ok, err := typeDef.Extends("System.ValueType")
+	if err != nil {
+		_ = level.Error(typeDef.logger).Log("msg", "error resolving type extends, all classes should extend at least System.Object", "err", err)
+		return false
+	}
+	return ok
+}
+
+// IsRuntimeClass returns true if the type is a runtime class
+func (typeDef *TypeDef) IsRuntimeClass() bool {
+	// Flags: all runtime classes must carry the public, auto layout, class, and tdWindowsRuntime flags.
+	return typeDef.Flags.Public() && typeDef.Flags.AutoLayout() && typeDef.Flags.Class() && typeDef.Flags&0x4000 != 0
+}
+
+// GUID returns the GUID of the type.
+func (typeDef *TypeDef) GUID() (string, error) {
+	blob, err := typeDef.GetTypeDefAttributeWithType(AttributeTypeGUID)
+	if err != nil {
+		return "", err
+	}
+	return guidBlobToString(blob)
+}
+
+// guidBlobToString converts an array into the textual representation of a GUID
+func guidBlobToString(b types.Blob) (string, error) {
+	// the guid is a blob of 20 bytes
+	if len(b) != 20 {
+		return "", fmt.Errorf("invalid GUID blob length: %d", len(b))
+	}
+
+	// that starts with 0100
+	if b[0] != 0x01 || b[1] != 0x00 {
+		return "", fmt.Errorf("invalid GUID blob header, expected '0x01 0x00' but found '0x%02x 0x%02x'", b[0], b[1])
+	}
+
+	// and ends with 0000
+	if b[18] != 0x00 || b[19] != 0x00 {
+		return "", fmt.Errorf("invalid GUID blob footer, expected '0x00 0x00' but found '0x%02x 0x%02x'", b[18], b[19])
+	}
+
+	guid := b[2 : len(b)-2]
+	// the string version has 5 parts separated by '-'
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%04x%08x",
+		// The first 3 are encoded as little endian
+		uint32(guid[0])|uint32(guid[1])<<8|uint32(guid[2])<<16|uint32(guid[3])<<24,
+		uint16(guid[4])|uint16(guid[5])<<8,
+		uint16(guid[6])|uint16(guid[7])<<8,
+		//the rest is not
+		uint16(guid[8])<<8|uint16(guid[9]),
+		uint16(guid[10])<<8|uint16(guid[11]),
+		uint32(guid[12])<<24|uint32(guid[13])<<16|uint32(guid[14])<<8|uint32(guid[15])), nil
 }
