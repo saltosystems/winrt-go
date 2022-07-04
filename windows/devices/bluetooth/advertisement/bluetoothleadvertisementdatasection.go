@@ -15,7 +15,7 @@ import (
 const SignatureBluetoothLEAdvertisementDataSection string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementDataSection;{d7213314-3a43-40f9-b6f0-92bfefc34ae3})"
 
 type BluetoothLEAdvertisementDataSection struct {
-	iBluetoothLEAdvertisementDataSection
+	ole.IUnknown
 }
 
 func NewBluetoothLEAdvertisementDataSection() (*BluetoothLEAdvertisementDataSection, error) {
@@ -24,6 +24,13 @@ func NewBluetoothLEAdvertisementDataSection() (*BluetoothLEAdvertisementDataSect
 		return nil, err
 	}
 	return (*BluetoothLEAdvertisementDataSection)(unsafe.Pointer(inspectable)), nil
+}
+
+func (impl *BluetoothLEAdvertisementDataSection) GetDataType() (uint8, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementDataSection))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementDataSection)(unsafe.Pointer(itf))
+	return v.GetDataType()
 }
 
 const GUIDiBluetoothLEAdvertisementDataSection string = "d7213314-3a43-40f9-b6f0-92bfefc34ae3"

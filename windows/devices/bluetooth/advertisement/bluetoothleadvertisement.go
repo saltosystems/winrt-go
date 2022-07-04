@@ -16,7 +16,7 @@ import (
 const SignatureBluetoothLEAdvertisement string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisement;{066fb2b7-33d1-4e7d-8367-cf81d0f79653})"
 
 type BluetoothLEAdvertisement struct {
-	iBluetoothLEAdvertisement
+	ole.IUnknown
 }
 
 func NewBluetoothLEAdvertisement() (*BluetoothLEAdvertisement, error) {
@@ -25,6 +25,34 @@ func NewBluetoothLEAdvertisement() (*BluetoothLEAdvertisement, error) {
 		return nil, err
 	}
 	return (*BluetoothLEAdvertisement)(unsafe.Pointer(inspectable)), nil
+}
+
+func (impl *BluetoothLEAdvertisement) GetLocalName() (string, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
+	return v.GetLocalName()
+}
+
+func (impl *BluetoothLEAdvertisement) GetServiceUuids() (*collections.IVector, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
+	return v.GetServiceUuids()
+}
+
+func (impl *BluetoothLEAdvertisement) GetManufacturerData() (*collections.IVector, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
+	return v.GetManufacturerData()
+}
+
+func (impl *BluetoothLEAdvertisement) GetDataSections() (*collections.IVector, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
+	return v.GetDataSections()
 }
 
 const GUIDiBluetoothLEAdvertisement string = "066fb2b7-33d1-4e7d-8367-cf81d0f79653"

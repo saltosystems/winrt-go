@@ -15,9 +15,28 @@ import (
 const SignatureBluetoothLEAdvertisementReceivedEventArgs string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementReceivedEventArgs;{27987ddf-e596-41be-8d43-9e6731d4a913})"
 
 type BluetoothLEAdvertisementReceivedEventArgs struct {
-	iBluetoothLEAdvertisementReceivedEventArgs
+	ole.IUnknown
+}
 
-	iBluetoothLEAdvertisementReceivedEventArgs2
+func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetRawSignalStrengthInDBm() (int16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
+	return v.GetRawSignalStrengthInDBm()
+}
+
+func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetBluetoothAddress() (uint64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
+	return v.GetBluetoothAddress()
+}
+
+func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
+	return v.GetAdvertisement()
 }
 
 const GUIDiBluetoothLEAdvertisementReceivedEventArgs string = "27987ddf-e596-41be-8d43-9e6731d4a913"

@@ -10,15 +10,19 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
 const SignatureDataReader string = "rc(Windows.Storage.Streams.DataReader;{e2b50029-b4c1-4314-a4b8-fb813a2f275e})"
 
 type DataReader struct {
-	IDataReader
+	ole.IUnknown
+}
 
-	foundation.IClosable
+func (impl *DataReader) ReadBytes(valueSize uint32) ([]uint8, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIDataReader))
+	defer itf.Release()
+	v := (*IDataReader)(unsafe.Pointer(itf))
+	return v.ReadBytes(valueSize)
 }
 
 const GUIDiDataReaderStatics string = "11fcbfc8-f93a-471b-b121-f379e349313c"

@@ -16,7 +16,7 @@ import (
 const SignatureBluetoothLEManufacturerData string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEManufacturerData;{912dba18-6963-4533-b061-4694dafb34e5})"
 
 type BluetoothLEManufacturerData struct {
-	iBluetoothLEManufacturerData
+	ole.IUnknown
 }
 
 func NewBluetoothLEManufacturerData() (*BluetoothLEManufacturerData, error) {
@@ -25,6 +25,34 @@ func NewBluetoothLEManufacturerData() (*BluetoothLEManufacturerData, error) {
 		return nil, err
 	}
 	return (*BluetoothLEManufacturerData)(unsafe.Pointer(inspectable)), nil
+}
+
+func (impl *BluetoothLEManufacturerData) GetCompanyId() (uint16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	defer itf.Release()
+	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
+	return v.GetCompanyId()
+}
+
+func (impl *BluetoothLEManufacturerData) SetCompanyId(value uint16) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	defer itf.Release()
+	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
+	return v.SetCompanyId(value)
+}
+
+func (impl *BluetoothLEManufacturerData) GetData() (*streams.IBuffer, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	defer itf.Release()
+	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
+	return v.GetData()
+}
+
+func (impl *BluetoothLEManufacturerData) SetData(value *streams.IBuffer) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	defer itf.Release()
+	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
+	return v.SetData(value)
 }
 
 const GUIDiBluetoothLEManufacturerData string = "912dba18-6963-4533-b061-4694dafb34e5"

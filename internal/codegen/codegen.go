@@ -145,7 +145,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		f.Data.Interfaces = append(f.Data.Interfaces, *iface)
+		f.Data.Interfaces = append(f.Data.Interfaces, iface)
 	case typeDef.IsEnum():
 		_ = level.Info(g.logger).Log("msg", "generating enum", "enum", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -153,7 +153,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		f.Data.Enums = append(f.Data.Enums, *enum)
+		f.Data.Enums = append(f.Data.Enums, enum)
 	case typeDef.IsStruct():
 		_ = level.Info(g.logger).Log("msg", "generating struct", "struct", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -161,16 +161,16 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		f.Data.Structs = append(f.Data.Structs, *genStruct)
+		f.Data.Structs = append(f.Data.Structs, genStruct)
 	case typeDef.IsDelegate():
 		delegate, err := g.createGenDelegate(typeDef)
 		if err != nil {
 			return err
 		}
-		f.Data.Delegates = append(f.Data.Delegates, *delegate)
+		f.Data.Delegates = append(f.Data.Delegates, delegate)
 
 		exportsFile := g.addFile(typeDef, "_exports")
-		exportsFile.Data.DelegateExports = append(f.Data.DelegateExports, *delegate)
+		exportsFile.Data.DelegateExports = append(f.Data.DelegateExports, delegate)
 	default:
 		_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
@@ -178,7 +178,7 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 		if err != nil {
 			return err
 		}
-		f.Data.Classes = append(f.Data.Classes, *class)
+		f.Data.Classes = append(f.Data.Classes, class)
 	}
 
 	return nil
@@ -238,7 +238,7 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
 func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
-	var requiredImports []genImport
+	var requiredImports []*genImport
 	var exclusiveInterfaceTypes []*winmd.TypeDef
 
 	// true => interface requires activation, false => interface is implemented by this class
@@ -249,21 +249,33 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 	if err != nil {
 		return nil, err
 	}
-	implInterfaces := make([]string, 0, len(interfaces))
+	implInterfaces := make([]*genInterface, 0, len(interfaces))
 	for _, iface := range interfaces {
 		// the interface needs to be implemented by this class
-		requiredImports = append(requiredImports, genImport{iface.Namespace, iface.Name})
-
-		pkg := ""
-		if typeDef.TypeNamespace != iface.Namespace {
-			pkg = typePackage(iface.Namespace, iface.Name) + "."
-		}
+		requiredImports = append(requiredImports, &genImport{iface.Namespace, iface.Name})
 
 		ifaceTypeDef, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name)
 		if err != nil {
 			return nil, err
 		}
-		implInterfaces = append(implInterfaces, pkg+typeDefGoName(ifaceTypeDef.TypeName, ifaceTypeDef.Flags.Public()))
+
+		itf, err := g.createGenInterface(ifaceTypeDef, false)
+		if err != nil {
+			return nil, err
+		}
+
+		pkg := ""
+		if typeDef.TypeNamespace != ifaceTypeDef.TypeNamespace {
+			pkg = typePackage(iface.Namespace, iface.Name)
+		}
+		for _, f := range itf.Funcs {
+			f.InheritedFrom = winmd.QualifiedID{
+				Namespace: pkg,
+				Name:      typeDefGoName(ifaceTypeDef.TypeName, ifaceTypeDef.Flags.Public()),
+			}
+		}
+
+		implInterfaces = append(implInterfaces, itf)
 
 		// The interface we implement may be exclusive to this class, in which case we need to generate it.
 		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
@@ -321,7 +333,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 	}
 
 	// generate exclusive interfaces
-	var exclusiveGenInterfaces []genInterface
+	var exclusiveGenInterfaces []*genInterface
 	for _, iface := range exclusiveInterfaceTypes {
 		requiresActivation := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
 		isExtendedInterface := !requiresActivation
@@ -342,7 +354,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 
 		// Extended interfaces always need to be generated (even if they have no method).
 		if isExtendedInterface || impl {
-			exclusiveGenInterfaces = append(exclusiveGenInterfaces, *ifaceGen)
+			exclusiveGenInterfaces = append(exclusiveGenInterfaces, ifaceGen)
 		}
 	}
 
@@ -392,7 +404,7 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 	enumType := elType.name
 
 	// After the enum value definition comes a field definition for each of the values in the enumeration.
-	var enumValues []genEnumValue
+	var enumValues []*genEnumValue
 	for i, field := range fields[1:] {
 		if !(field.Flags.Public() && field.Flags.Static() && field.Flags.Literal() && field.Flags.HasDefault()) {
 			return nil,
@@ -408,7 +420,7 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 			return nil, err
 		}
 
-		enumValues = append(enumValues, genEnumValue{
+		enumValues = append(enumValues, &genEnumValue{
 			Name:  enumName(typeDef.TypeName, field.Name),
 			Value: enumRawValue,
 		})
@@ -556,8 +568,8 @@ func extractClassFromBlob(blob []byte) string {
 	return string(class)
 }
 
-func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool) ([]genFunc, error) {
-	var genFuncs []genFunc
+func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool) ([]*genFunc, error) {
+	var genFuncs []*genFunc
 
 	methods, err := typeDef.ResolveMethodList(typeDef.Ctx())
 	if err != nil {
@@ -575,7 +587,7 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 		if err != nil {
 			return nil, err
 		}
-		genFuncs = append(genFuncs, *generatedFunc)
+		genFuncs = append(genFuncs, generatedFunc)
 	}
 
 	return genFuncs, nil
@@ -620,11 +632,11 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 	allImplementedParams = append(allImplementedParams, params...)
 	allImplementedParams = append(allImplementedParams, retParams...)
 
-	var requiredImports []genImport
+	var requiredImports []*genImport
 	for _, p := range allImplementedParams {
 		p.callerPackage = curPackage
 		if !p.Type.IsPrimitive {
-			requiredImports = append(requiredImports, genImport{p.Type.namespace, p.Type.name})
+			requiredImports = append(requiredImports, &genImport{p.Type.namespace, p.Type.name})
 		}
 	}
 
