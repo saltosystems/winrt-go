@@ -69,7 +69,7 @@ type TypedEventHandler struct {
 	Callback TypedEventHandlerCallback
 }
 
-type TypedEventHandlerCallback func(sender unsafe.Pointer, args unsafe.Pointer)
+type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))

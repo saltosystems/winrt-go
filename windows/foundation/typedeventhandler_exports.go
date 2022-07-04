@@ -40,6 +40,6 @@ func winrt_TypedEventHandler_QueryInterface(instancePtr, iidPtr unsafe.Pointer, 
 func winrt_TypedEventHandler_Invoke(instancePtr, senderPtr, argsPtr unsafe.Pointer) uintptr {
 	// See the quote above.
 	instance := (*TypedEventHandler)(instancePtr)
-	instance.Callback(instancePtr, argsPtr)
+	instance.Callback(instance, senderPtr, argsPtr)
 	return ole.S_OK
 }

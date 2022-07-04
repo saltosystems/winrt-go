@@ -56,9 +56,8 @@ type {{.Name}} struct {
 	Callback {{.Name}}Callback
 }
 
-type {{.Name}}Callback func({{- range .InParams -}}
-	{{.GoVarName}} {{ if .IsOut }}*{{ end -}}
-	{{template "variabletype.tmpl" . }},
+type {{.Name}}Callback func(instance *{{.Name}},{{- range .InParams -}}
+	{{.GoVarName}} {{template "variabletype.tmpl" . }},
 {{- end -}})
 
 func New{{.Name}}(iid *ole.GUID, callback TypedEventHandlerCallback) *{{.Name}} {
