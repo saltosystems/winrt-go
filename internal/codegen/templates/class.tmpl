@@ -1,9 +1,7 @@
 const Signature{{.Name}} string = "{{.Signature}}"
 
 type {{.Name}} struct {
-    {{range .ImplInterfaces}}
-        {{.}}
-    {{end}}
+    ole.IUnknown
 }
 
 {{if .HasEmptyConstructor}}
@@ -14,6 +12,45 @@ func New{{.Name}}() (*{{.Name}}, error) {
     }
     return (*{{.Name}})(unsafe.Pointer(inspectable)), nil
 }
+{{end}}
+
+{{$owner := .Name}}
+{{range .ImplInterfaces}}
+    {{range .Funcs}}
+        {{if not .Implement}}{{continue}}{{end}}
+        func (impl *{{$owner}}) {{funcName .}} (
+            {{- range .InParams -}}
+                {{/*do not include out parameters, they are used as return values*/ -}}
+                {{ if .IsOut }}{{continue}}{{ end -}}
+                {{.GoVarName}} {{template "variabletype.tmpl" . }},
+            {{- end -}}
+        )
+
+        {{- /* return params */ -}}
+
+        ( {{range .InParams -}}
+            {{ if not .IsOut }}{{continue}}{{ end -}}
+            {{template "variabletype.tmpl" . }},{{end -}}
+        {{range .ReturnParams}}{{template "variabletype.tmpl" . }},{{end}} error )
+
+        {{- /* method body */ -}}
+
+        {
+            itf := impl.MustQueryInterface(ole.NewGUID({{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}GUID{{.InheritedFrom.Name}}))
+            defer itf.Release()
+            v := (*{{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}{{.InheritedFrom.Name}})(unsafe.Pointer(itf))
+            return v.{{funcName . -}}
+            (
+                {{- range .InParams -}}
+                    {{if .IsOut -}}
+                        {{continue -}}
+                    {{end -}}
+                    {{.GoVarName -}}
+                    ,
+                {{- end -}}
+            )
+        }
+    {{end}}
 {{end}}
 
 {{range .ExclusiveInterfaces}}

@@ -16,9 +16,7 @@ import (
 const SignatureBluetoothLEAdvertisementWatcher string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcher;{a6ac336f-f3d3-4297-8d6c-c81ea6623f40})"
 
 type BluetoothLEAdvertisementWatcher struct {
-	iBluetoothLEAdvertisementWatcher
-
-	iBluetoothLEAdvertisementWatcher2
+	ole.IUnknown
 }
 
 func NewBluetoothLEAdvertisementWatcher() (*BluetoothLEAdvertisementWatcher, error) {
@@ -27,6 +25,55 @@ func NewBluetoothLEAdvertisementWatcher() (*BluetoothLEAdvertisementWatcher, err
 		return nil, err
 	}
 	return (*BluetoothLEAdvertisementWatcher)(unsafe.Pointer(inspectable)), nil
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) GetStatus() (BluetoothLEAdvertisementWatcherStatus, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.GetStatus()
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) Start() error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.Start()
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) Stop() error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.Stop()
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.AddReceived(handler)
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) RemoveReceived(token foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.RemoveReceived(token)
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.AddStopped(handler)
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.RemoveStopped(token)
 }
 
 const GUIDiBluetoothLEAdvertisementWatcher string = "a6ac336f-f3d3-4297-8d6c-c81ea6623f40"

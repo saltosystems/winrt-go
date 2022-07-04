@@ -16,17 +16,17 @@ type genDataFile struct {
 type genData struct {
 	Package         string
 	Imports         []string
-	Classes         []genClass
-	Enums           []genEnum
-	Interfaces      []genInterface
-	Structs         []genStruct
-	Delegates       []genDelegate
-	DelegateExports []genDelegate
+	Classes         []*genClass
+	Enums           []*genEnum
+	Interfaces      []*genInterface
+	Structs         []*genStruct
+	Delegates       []*genDelegate
+	DelegateExports []*genDelegate
 }
 
 func (g *genData) ComputeImports(typeDef *winmd.TypeDef) {
 	// gather all imports
-	imports := make([]genImport, 0)
+	imports := make([]*genImport, 0)
 	if g.Classes != nil {
 		for _, c := range g.Classes {
 			imports = append(imports, c.GetRequiredImports()...)
@@ -49,11 +49,11 @@ type genInterface struct {
 	Name      string
 	GUID      string
 	Signature string
-	Funcs     []genFunc
+	Funcs     []*genFunc
 }
 
-func (g *genInterface) GetRequiredImports() []genImport {
-	imports := make([]genImport, 0)
+func (g *genInterface) GetRequiredImports() []*genImport {
+	imports := make([]*genImport, 0)
 	for _, f := range g.Funcs {
 		imports = append(imports, f.RequiresImports...)
 	}
@@ -63,15 +63,15 @@ func (g *genInterface) GetRequiredImports() []genImport {
 type genClass struct {
 	Name                string
 	Signature           string
-	RequiresImports     []genImport
+	RequiresImports     []*genImport
 	FullyQualifiedName  string
-	ImplInterfaces      []string
-	ExclusiveInterfaces []genInterface
+	ImplInterfaces      []*genInterface
+	ExclusiveInterfaces []*genInterface
 	HasEmptyConstructor bool
 }
 
-func (g *genClass) GetRequiredImports() []genImport {
-	imports := make([]genImport, 0)
+func (g *genClass) GetRequiredImports() []*genImport {
+	imports := make([]*genImport, 0)
 	if g.RequiresImports != nil {
 		imports = append(imports, g.RequiresImports...)
 	}
@@ -96,7 +96,7 @@ type genEnum struct {
 	Name      string
 	Type      string
 	Signature string
-	Values    []genEnumValue
+	Values    []*genEnumValue
 }
 type genEnumValue struct {
 	Name  string
@@ -105,7 +105,7 @@ type genEnumValue struct {
 
 type genFunc struct {
 	Name            string
-	RequiresImports []genImport
+	RequiresImports []*genImport
 	Implement       bool
 	FuncOwner       string
 	InParams        []*genParam
@@ -113,9 +113,10 @@ type genFunc struct {
 
 	// ExclusiveTo is the name of the class that this function is exclusive to.
 	// The funcion will be called statically using the RoGetActivationFactory function.
-	ExclusiveTo string
-
+	ExclusiveTo        string
 	RequiresActivation bool
+
+	InheritedFrom winmd.QualifiedID
 }
 
 type genImport struct {

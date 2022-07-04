@@ -15,7 +15,28 @@ import (
 const SignatureBuffer string = "rc(Windows.Storage.Streams.Buffer;{905a0fe0-bc53-11df-8c49-001e4fc686da})"
 
 type Buffer struct {
-	IBuffer
+	ole.IUnknown
+}
+
+func (impl *Buffer) GetCapacity() (uint32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	defer itf.Release()
+	v := (*IBuffer)(unsafe.Pointer(itf))
+	return v.GetCapacity()
+}
+
+func (impl *Buffer) GetLength() (uint32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	defer itf.Release()
+	v := (*IBuffer)(unsafe.Pointer(itf))
+	return v.GetLength()
+}
+
+func (impl *Buffer) SetLength(value uint32) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	defer itf.Release()
+	v := (*IBuffer)(unsafe.Pointer(itf))
+	return v.SetLength(value)
 }
 
 const GUIDiBufferFactory string = "71af914d-c10f-484b-bc50-14bc623b3a27"
