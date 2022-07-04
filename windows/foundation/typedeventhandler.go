@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 )
 
 /*
@@ -19,23 +20,8 @@ import (
 // mangling, the signature doesn't really matter.
 void winrt_TypedEventHandler_Invoke(void);
 void winrt_TypedEventHandler_QueryInterface(void);
-
-// This is the contract the functions below should adhere to:
-// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
-
-static uint64_t winrt_TypedEventHandler_AddRef(void) {
-	// This is safe, see winrt_TypedEventHandler_Release.
-	return 2;
-}
-
-static uint64_t winrt_TypedEventHandler_Release(void) {
-	// Pretend there is one reference left.
-	// The docs say:
-	// > This value is intended to be used only for test purposes.
-	// Also see:
-	// https://docs.microsoft.com/en-us/archive/msdn-magazine/2013/august/windows-with-c-the-windows-runtime-application-model
-	return 1;
-}
+uint64_t winrt_TypedEventHandler_AddRef(void);
+uint64_t winrt_TypedEventHandler_Release(void);
 
 // The Vtable structure for WinRT TypedEventHandler interfaces.
 typedef struct {
@@ -66,6 +52,7 @@ const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a
 type TypedEventHandler struct {
 	ole.IUnknown
 	IID      *ole.GUID
+	RefCount *winrt.RefCount
 	Callback TypedEventHandlerCallback
 }
 
@@ -75,7 +62,9 @@ func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *Ty
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
 	inst.IID = iid
+	inst.RefCount = winrt.NewRefCount()
 	inst.Callback = callback
 
+	inst.RefCount.AddRef()
 	return inst
 }

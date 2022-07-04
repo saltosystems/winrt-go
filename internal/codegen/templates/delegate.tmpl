@@ -6,23 +6,8 @@
 // mangling, the signature doesn't really matter.
 void winrt_{{.Name}}_Invoke(void);
 void winrt_{{.Name}}_QueryInterface(void);
-
-// This is the contract the functions below should adhere to:
-// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
-
-static uint64_t winrt_{{.Name}}_AddRef(void) {
-	// This is safe, see winrt_{{.Name}}_Release.
-	return 2;
-}
-
-static uint64_t winrt_{{.Name}}_Release(void) {
-	// Pretend there is one reference left.
-	// The docs say:
-	// > This value is intended to be used only for test purposes.
-	// Also see:
-	// https://docs.microsoft.com/en-us/archive/msdn-magazine/2013/august/windows-with-c-the-windows-runtime-application-model
-	return 1;
-}
+uint64_t winrt_{{.Name}}_AddRef(void);
+uint64_t winrt_{{.Name}}_Release(void);
 
 // The Vtable structure for WinRT {{.Name}} interfaces.
 typedef struct {
@@ -53,6 +38,7 @@ const Signature{{.Name}} string = "{{.Signature}}"
 type {{.Name}} struct {
 	ole.IUnknown
 	IID      *ole.GUID
+	RefCount *winrt.RefCount
 	Callback {{.Name}}Callback
 }
 
@@ -64,7 +50,9 @@ func New{{.Name}}(iid *ole.GUID, callback TypedEventHandlerCallback) *{{.Name}} 
     inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
     inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
     inst.IID = iid
+    inst.RefCount = winrt.NewRefCount()
     inst.Callback = callback
 
+	inst.RefCount.AddRef()
     return inst
 }
