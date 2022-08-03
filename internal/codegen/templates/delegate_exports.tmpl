@@ -36,10 +36,24 @@ func winrt_{{.Name}}_QueryInterface(instancePtr, iidPtr unsafe.Pointer, ppvObjec
 }
 
 //export winrt_{{.Name}}_Invoke
-func winrt_{{.Name}}_Invoke(instancePtr {{range .InParams}},{{.GoVarName}}Ptr{{end}} unsafe.Pointer) uintptr {
+func winrt_{{.Name}}_Invoke(instancePtr unsafe.Pointer {{range .InParams -}}
+		,
+		{{- if .Type.IsEnum -}}
+			{{.GoVarName}}Raw {{.Type.UnderlyingEnumType}}
+		{{- else -}}
+			{{.GoVarName}}Ptr unsafe.Pointer
+		{{- end}}
+	{{- end -}}) uintptr {
 	// See the quote above.
 	instance := (*{{.Name}})(instancePtr)
-	instance.Callback(instance, {{range .InParams}}{{.GoVarName}}Ptr,{{end}})
+	{{range .InParams -}}
+		{{if .Type.IsEnum -}}
+			{{.GoVarName}} := ({{template "variabletype.tmpl" . }})({{.GoVarName}}Raw)
+		{{else -}}
+			{{.GoVarName}} := ({{template "variabletype.tmpl" . }})({{.GoVarName}}Ptr)
+		{{end -}}
+	{{end -}}
+	instance.Callback(instance, {{range .InParams}}{{.GoVarName}},{{end}})
 	return ole.S_OK
 }
 

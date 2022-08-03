@@ -931,13 +931,34 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 		if err != nil {
 			return nil, err
 		}
+
+		elementTypeDef, err := g.mdStore.TypeDefByName(namespace + "." + name)
+		if err != nil {
+			return nil, err
+		}
+
+		// if its an enum, we will need the underlying type
+		isEnum := false
+		enumType := ""
+		if elementTypeDef.IsEnum() {
+			enumData, err := g.createGenEnum(elementTypeDef)
+			if err != nil {
+				return nil, err
+			}
+
+			// Treat the enum as a primitive
+			isEnum = true
+			enumType = enumData.Type
+		}
 		return &genParamType{
-			namespace:    namespace,
-			name:         name,
-			IsPointer:    false,
-			IsPrimitive:  false,
-			IsArray:      false,
-			defaultValue: g.elementDefaultValue(ctx, e),
+			namespace:          namespace,
+			name:               name,
+			IsPointer:          false,
+			IsPrimitive:        false,
+			IsArray:            false,
+			IsEnum:             isEnum,
+			UnderlyingEnumType: enumType,
+			defaultValue:       g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_VAR:
 		// A class variable type modifier

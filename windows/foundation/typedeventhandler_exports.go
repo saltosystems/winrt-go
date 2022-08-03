@@ -48,10 +48,12 @@ func winrt_TypedEventHandler_QueryInterface(instancePtr, iidPtr unsafe.Pointer, 
 }
 
 //export winrt_TypedEventHandler_Invoke
-func winrt_TypedEventHandler_Invoke(instancePtr, senderPtr, argsPtr unsafe.Pointer) uintptr {
+func winrt_TypedEventHandler_Invoke(instancePtr unsafe.Pointer, senderPtr unsafe.Pointer, argsPtr unsafe.Pointer) uintptr {
 	// See the quote above.
 	instance := (*TypedEventHandler)(instancePtr)
-	instance.Callback(instance, senderPtr, argsPtr)
+	sender := (unsafe.Pointer)(senderPtr)
+	args := (unsafe.Pointer)(argsPtr)
+	instance.Callback(instance, sender, args)
 	return ole.S_OK
 }
 
