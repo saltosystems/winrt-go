@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/go-kit/log"
@@ -581,11 +582,26 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 		exclusiveToType = ex
 	}
 
+	// map used to check if a method already exists
+	existingMethods := make(map[string]int)
 	for _, m := range methods {
 		methodDef := m
 		generatedFunc, err := g.genFuncFromMethod(typeDef, &methodDef, exclusiveToType, requiresActivation)
 		if err != nil {
 			return nil, err
+		}
+
+		// if the method is overloaded (already exists), we cannot add it using the same name
+		funcName := generatedFunc.Name
+		if i, ok := existingMethods[funcName]; ok {
+			// already exists, add a suffix to the name
+			generatedFunc.Name = funcName + strconv.Itoa(i+1)
+
+			// increment the counter in case it is overloaded again
+			existingMethods[funcName] = i + 1
+		} else {
+			// set the counter to 1
+			existingMethods[funcName] = 1
 		}
 		genFuncs = append(genFuncs, generatedFunc)
 	}
