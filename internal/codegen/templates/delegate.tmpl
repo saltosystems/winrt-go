@@ -46,7 +46,7 @@ type {{.Name}}Callback func(instance *{{.Name}},{{- range .InParams -}}
 	{{.GoVarName}} {{template "variabletype.tmpl" . }},
 {{- end -}})
 
-func New{{.Name}}(iid *ole.GUID, callback TypedEventHandlerCallback) *{{.Name}} {
+func New{{.Name}}(iid *ole.GUID, callback {{.Name}}Callback) *{{.Name}} {
     inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
     inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
     inst.IID = iid

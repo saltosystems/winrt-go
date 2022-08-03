@@ -146,9 +146,11 @@ type genParamType struct {
 	namespace string
 	name      string
 
-	IsPointer   bool
-	IsArray     bool
-	IsPrimitive bool
+	IsPointer          bool
+	IsArray            bool
+	IsPrimitive        bool
+	IsEnum             bool
+	UnderlyingEnumType string
 
 	defaultValue genDefaultValue
 }
