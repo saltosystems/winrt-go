@@ -6,7 +6,29 @@ import (
 	"embed"
 	"io/fs"
 	"io/ioutil"
+
+	"github.com/tdakkota/win32metadata/types"
 )
+
+// Custom Attributes
+const (
+	AttributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
+	AttributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
+	AttributeTypeStaticAttribute      = "Windows.Foundation.Metadata.StaticAttribute"
+	AttributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
+	AttributeTypeDefaultAttribute     = "Windows.Foundation.Metadata.DefaultAttribute"
+	AttributeTypeOverloadAttribute    = "Windows.Foundation.Metadata.OverloadAttribute"
+)
+
+// HasContext is a helper struct that holds the original context of a metadata element.
+type HasContext struct {
+	originalCtx *types.Context
+}
+
+// Ctx return the original context of the element.
+func (hctx *HasContext) Ctx() *types.Context {
+	return hctx.originalCtx
+}
 
 //go:embed metadata/*.winmd
 var files embed.FS
