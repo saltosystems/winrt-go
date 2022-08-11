@@ -6,7 +6,6 @@ import (
 	"go/format"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/go-kit/log"
@@ -537,7 +536,7 @@ func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, err
 }
 
 func (g *generator) interfaceIsExclusiveTo(typeDef *winmd.TypeDef) (string, bool) {
-	exclusiveToBlob, err := typeDef.GetTypeDefAttributeWithType(winmd.AttributeTypeExclusiveTo)
+	exclusiveToBlob, err := typeDef.GetAttributeWithType(winmd.AttributeTypeExclusiveTo)
 	// an error here is fine, we just won't have the ExclusiveTo attribute
 	if err != nil {
 		return "", false
@@ -582,8 +581,6 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 		exclusiveToType = ex
 	}
 
-	// map used to check if a method already exists
-	existingMethods := make(map[string]int)
 	for _, m := range methods {
 		methodDef := m
 		generatedFunc, err := g.genFuncFromMethod(typeDef, &methodDef, exclusiveToType, requiresActivation)
@@ -591,18 +588,6 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 			return nil, err
 		}
 
-		// if the method is overloaded (already exists), we cannot add it using the same name
-		funcName := generatedFunc.Name
-		if i, ok := existingMethods[funcName]; ok {
-			// already exists, add a suffix to the name
-			generatedFunc.Name = funcName + strconv.Itoa(i+1)
-
-			// increment the counter in case it is overloaded again
-			existingMethods[funcName] = i + 1
-		} else {
-			// set the counter to 1
-			existingMethods[funcName] = 1
-		}
 		genFuncs = append(genFuncs, generatedFunc)
 	}
 
@@ -618,7 +603,7 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		// if we don't implement the method, we don't need to gather
 		// all the information, just the name of it is enough
 		return &genFunc{
-			Name:               methodDef.Name,
+			Name:               winmd.GetMethodOverloadName(typeDef.Ctx(), methodDef),
 			RequiresImports:    nil,
 			Implement:          implement,
 			InParams:           nil,
@@ -657,7 +642,7 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 	}
 
 	return &genFunc{
-		Name:               methodDef.Name,
+		Name:               winmd.GetMethodOverloadName(typeDef.Ctx(), methodDef),
 		RequiresImports:    requiredImports,
 		Implement:          implement,
 		InParams:           params,
@@ -1132,7 +1117,7 @@ func (g *generator) Signature(typeDef *winmd.TypeDef) (string, error) {
 		// runtime_class_signature => "rc(" runtime_class_name ";" default_interface ")"
 
 		// Runtime classes must specify the DefaultAttribute on exactly one of their InterfaceImpl rows.
-		defaultInterface, err := typeDef.GetTypeDefAttributeWithType(winmd.AttributeTypeDefaultAttribute)
+		defaultInterface, err := typeDef.GetAttributeWithType(winmd.AttributeTypeDefaultAttribute)
 		if err != nil {
 			// Some classes (Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcher) do not
 			// define a runtime class. I'm not sure if this is an error in the IDL or the documentation.

@@ -10,25 +10,6 @@ import (
 	"github.com/tdakkota/win32metadata/types"
 )
 
-// Custom Attributes
-const (
-	AttributeTypeGUID                 = "Windows.Foundation.Metadata.GuidAttribute"
-	AttributeTypeExclusiveTo          = "Windows.Foundation.Metadata.ExclusiveToAttribute"
-	AttributeTypeStaticAttribute      = "Windows.Foundation.Metadata.StaticAttribute"
-	AttributeTypeActivatableAttribute = "Windows.Foundation.Metadata.ActivatableAttribute"
-	AttributeTypeDefaultAttribute     = "Windows.Foundation.Metadata.DefaultAttribute"
-)
-
-// HasContext is a helper struct that holds the original context of a metadata element.
-type HasContext struct {
-	originalCtx *types.Context
-}
-
-// Ctx return the original context of the element.
-func (hctx *HasContext) Ctx() *types.Context {
-	return hctx.originalCtx
-}
-
 // TypeDef is a helper struct that wraps types.TypeDef and stores the original context
 // of the typeDef.
 type TypeDef struct {
@@ -75,8 +56,8 @@ func (typeDef *TypeDef) GetValueForEnumField(fieldIndex uint32) (string, error) 
 	return "", fmt.Errorf("no value found for field %d", fieldIndex)
 }
 
-// GetTypeDefAttributeWithType returns the value of the given attribute type and fails if not found.
-func (typeDef *TypeDef) GetTypeDefAttributeWithType(lookupAttrTypeClass string) ([]byte, error) {
+// GetAttributeWithType returns the value of the given attribute type and fails if not found.
+func (typeDef *TypeDef) GetAttributeWithType(lookupAttrTypeClass string) ([]byte, error) {
 	result := typeDef.GetTypeDefAttributesWithType(lookupAttrTypeClass)
 	if len(result) == 0 {
 		return nil, fmt.Errorf("type %s has no custom attribute %s", typeDef.TypeNamespace+"."+typeDef.TypeName, lookupAttrTypeClass)
@@ -291,7 +272,7 @@ func (typeDef *TypeDef) IsRuntimeClass() bool {
 
 // GUID returns the GUID of the type.
 func (typeDef *TypeDef) GUID() (string, error) {
-	blob, err := typeDef.GetTypeDefAttributeWithType(AttributeTypeGUID)
+	blob, err := typeDef.GetAttributeWithType(AttributeTypeGUID)
 	if err != nil {
 		return "", err
 	}
