@@ -751,7 +751,7 @@ func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDe
 		// return param always has an index of zero
 		callerPackage: curPackage,
 		varName:       "out",
-		IsOut:         false, // notrelevant
+		IsOut:         true,
 		Type:          elType,
 	})
 

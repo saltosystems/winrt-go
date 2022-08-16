@@ -21,22 +21,27 @@ hr, _, _ := syscall.SyscallN(
     {{else}}
         uintptr(unsafe.Pointer(v)), // this
     {{end -}}
-    {{range .InParams -}}
+    {{range (concat .InParams .ReturnParams) -}}
         {{if .IsOut -}}
-            {{/* Arrays need to pass a pointer to their first element */ -}}
-            uintptr(unsafe.Pointer(&{{.GoVarName}}{{if .Type.IsArray }}[0]{{end}})),   // out {{.GoTypeName}}
+            {{if .Type.IsArray -}}
+                {{/* Arrays need to pass a pointer to their first element */ -}}
+                uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // out {{.GoTypeName}}
+            {{else -}}
+                uintptr(unsafe.Pointer(&{{.GoVarName}})),   // out {{.GoTypeName}}
+            {{end -}}
         {{else if .Type.IsPointer -}}
             uintptr(unsafe.Pointer({{.GoVarName}})),   // in {{.GoTypeName}}
         {{else if .Type.IsPrimitive -}}
-            uintptr({{.GoVarName}}),   // in {{.GoVarName}}
+            {{ if eq .GoTypeName "bool" -}}
+                uintptr(*(*byte)(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoVarName}}
+            {{else -}}
+                uintptr({{.GoVarName}}),   // in {{.GoVarName}}
+            {{end -}}
         {{else -}}
             uintptr(unsafe.Pointer(&{{.GoVarName}})),   // in {{.GoVarName}}
         {{end -}}
     {{end -}}
-    {{range .ReturnParams -}}
-        uintptr(unsafe.Pointer(&{{.GoVarName}})), // out {{.GoTypeName}}
-    {{end}})
-
+)
 
 if hr != 0 {
     return {{range .InParams}}{{if .IsOut}}{{.GoDefaultValue}}, {{end}}{{end -}}

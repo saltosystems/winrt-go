@@ -217,6 +217,9 @@ func getTemplates() (*template.Template, error) {
 func funcs() template.FuncMap {
 	return template.FuncMap{
 		"funcName": funcName,
+		"concat": func(a, b []*genParam) []*genParam {
+			return append(a, b...)
+		},
 	}
 }
 
