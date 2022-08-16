@@ -47,6 +47,13 @@ func (impl *BluetoothLEDevice) Close() error {
 	return v.Close()
 }
 
+func (impl *BluetoothLEDevice) GetBluetoothDeviceId() (*BluetoothDeviceId, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice4))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice4)(unsafe.Pointer(itf))
+	return v.GetBluetoothDeviceId()
+}
+
 const GUIDiBluetoothLEDevice string = "b5ee2f7b-4ad8-4642-ac48-80a0b500e887"
 const SignatureiBluetoothLEDevice string = "{b5ee2f7b-4ad8-4642-ac48-80a0b500e887}"
 
@@ -176,6 +183,21 @@ type iBluetoothLEDevice4Vtbl struct {
 
 func (v *iBluetoothLEDevice4) VTable() *iBluetoothLEDevice4Vtbl {
 	return (*iBluetoothLEDevice4Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iBluetoothLEDevice4) GetBluetoothDeviceId() (*BluetoothDeviceId, error) {
+	var out *BluetoothDeviceId
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetBluetoothDeviceId,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothDeviceId
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
 }
 
 const GUIDiBluetoothLEDevice5 string = "9d6a1260-5287-458e-95ba-17c8b7bb326e"

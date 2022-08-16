@@ -7,13 +7,31 @@ if err != nil {
 v := (*{{.FuncOwner}})(unsafe.Pointer(inspectable))
 
 {{end -}}
+
+{{- /* Declare out variables*/ -}}
+
+{{range (concat .InParams .ReturnParams) -}}
+    {{ if not .IsOut}}{{continue}}{{end -}}
+    {{if eq .GoTypeName "string" -}}
+        var {{.GoVarName}}HStr ole.HString
+    {{ else -}}
+        var {{.GoVarName}} {{template "variabletype.tmpl" . -}}
+        {{if .Type.IsArray}} = make({{template "variabletype.tmpl" . -}}, {{.GoVarName}}Size){{end}}
+    {{ end -}}
+{{ end -}}
+
+{{- /* Convert in variables to winrt types */ -}}
+
 {{range .InParams -}}
-    {{ if not .IsOut }}{{continue}}{{ end -}}
-    var {{.GoVarName}} {{template "variabletype.tmpl" . -}}
-    {{if .Type.IsArray}} = make({{template "variabletype.tmpl" . -}}, {{.GoVarName}}Size){{end}}
-{{end -}}
-{{range .ReturnParams -}}var {{.GoVarName}} {{template "variabletype.tmpl" .}}
-{{end -}}
+    {{ if .IsOut}}{{continue}}{{end -}}
+    {{if eq .GoTypeName "string" -}}
+        {{.GoVarName}}HStr, err := ole.NewHString({{.GoVarName}})
+        if err != nil{
+            return {{range $.InParams}}{{if .IsOut}}{{.GoDefaultValue}}, {{end}}{{end -}}
+                {{range $.ReturnParams }}{{.GoDefaultValue}}, {{end}}err
+        }
+    {{ end -}}
+{{ end -}}
 hr, _, _ := syscall.SyscallN(
     v.VTable().{{funcName .}},
     {{- if .RequiresActivation}}
@@ -26,6 +44,12 @@ hr, _, _ := syscall.SyscallN(
             {{if .Type.IsArray -}}
                 {{/* Arrays need to pass a pointer to their first element */ -}}
                 uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // out {{.GoTypeName}}
+            {{else if .Type.IsPrimitive -}}
+                {{if eq .GoTypeName "string" -}}
+                    uintptr(unsafe.Pointer(&{{.GoVarName}}HStr)),   // out {{.GoTypeName}}
+                {{else -}}
+                    uintptr(unsafe.Pointer(&{{.GoVarName}})),   // out {{.GoTypeName}}
+                {{end -}}
             {{else -}}
                 uintptr(unsafe.Pointer(&{{.GoVarName}})),   // out {{.GoTypeName}}
             {{end -}}
@@ -34,6 +58,8 @@ hr, _, _ := syscall.SyscallN(
         {{else if .Type.IsPrimitive -}}
             {{ if eq .GoTypeName "bool" -}}
                 uintptr(*(*byte)(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoVarName}}
+            {{ else if eq .GoTypeName "string" -}}
+                uintptr({{.GoVarName}}HStr),   // in {{.GoVarName}}
             {{else -}}
                 uintptr({{.GoVarName}}),   // in {{.GoVarName}}
             {{end -}}
@@ -47,6 +73,15 @@ if hr != 0 {
     return {{range .InParams}}{{if .IsOut}}{{.GoDefaultValue}}, {{end}}{{end -}}
         {{range .ReturnParams }}{{.GoDefaultValue}}, {{end}}ole.NewError(hr)
 }
+
+{{range (concat .InParams .ReturnParams) -}}
+    {{ if not .IsOut}}{{continue}}{{end -}}
+    {{if eq .GoTypeName "string" -}}
+        {{.GoVarName}} := {{.GoVarName}}HStr.String()
+        ole.DeleteHString({{.GoVarName}}HStr)
+    {{ end -}}
+{{ end -}}
+
 
 return {{range .InParams}}{{if .IsOut}}{{.GoVarName}}, {{end}}{{end -}}
     {{range .ReturnParams }}{{.GoVarName}},{{end}} nil
