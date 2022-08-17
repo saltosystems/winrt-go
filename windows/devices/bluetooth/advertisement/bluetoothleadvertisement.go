@@ -34,6 +34,13 @@ func (impl *BluetoothLEAdvertisement) GetLocalName() (string, error) {
 	return v.GetLocalName()
 }
 
+func (impl *BluetoothLEAdvertisement) SetLocalName(value string) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
+	return v.SetLocalName(value)
+}
+
 func (impl *BluetoothLEAdvertisement) GetServiceUuids() (*collections.IVector, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
 	defer itf.Release()
@@ -81,18 +88,38 @@ func (v *iBluetoothLEAdvertisement) VTable() *iBluetoothLEAdvertisementVtbl {
 }
 
 func (v *iBluetoothLEAdvertisement) GetLocalName() (string, error) {
-	var out string
+	var outHStr ole.HString
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetLocalName,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(unsafe.Pointer(&out)), // out string
+		uintptr(unsafe.Pointer(v)),        // this
+		uintptr(unsafe.Pointer(&outHStr)), // out string
 	)
 
 	if hr != 0 {
 		return "", ole.NewError(hr)
 	}
 
+	out := outHStr.String()
+	ole.DeleteHString(outHStr)
 	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisement) SetLocalName(value string) error {
+	valueHStr, err := ole.NewHString(value)
+	if err != nil {
+		return err
+	}
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().SetLocalName,
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(valueHStr),         // in value
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
 
 func (v *iBluetoothLEAdvertisement) GetServiceUuids() (*collections.IVector, error) {
