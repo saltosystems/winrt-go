@@ -47,6 +47,20 @@ func (impl *BluetoothLEDevice) Close() error {
 	return v.Close()
 }
 
+func (impl *BluetoothLEDevice) GetGattServicesAsync() (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice3)(unsafe.Pointer(itf))
+	return v.GetGattServicesAsync()
+}
+
+func (impl *BluetoothLEDevice) GetGattServicesWithCacheModeAsync(cacheMode BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice3)(unsafe.Pointer(itf))
+	return v.GetGattServicesWithCacheModeAsync(cacheMode)
+}
+
 func (impl *BluetoothLEDevice) GetBluetoothDeviceId() (*BluetoothDeviceId, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice4))
 	defer itf.Release()
@@ -166,6 +180,37 @@ type iBluetoothLEDevice3Vtbl struct {
 
 func (v *iBluetoothLEDevice3) VTable() *iBluetoothLEDevice3Vtbl {
 	return (*iBluetoothLEDevice3Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iBluetoothLEDevice3) GetGattServicesAsync() (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetGattServicesAsync,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEDevice3) GetGattServicesWithCacheModeAsync(cacheMode BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetGattServicesWithCacheModeAsync,
+		uintptr(unsafe.Pointer(v)),          // this
+		uintptr(unsafe.Pointer(&cacheMode)), // in cacheMode
+		uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
 }
 
 const GUIDiBluetoothLEDevice4 string = "2b605031-2248-4b2f-acf0-7cee36fc5870"

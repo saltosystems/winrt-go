@@ -71,6 +71,21 @@ func (v *IVector) GetSize() (uint32, error) {
 	return out, nil
 }
 
+func (v *IVector) GetView() (*IVectorView, error) {
+	var out *IVectorView
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetView,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out IVectorView
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
 func (v *IVector) IndexOf(value unsafe.Pointer) (uint32, bool, error) {
 	var index uint32
 	var out bool

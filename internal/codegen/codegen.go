@@ -917,6 +917,11 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 			return nil, err
 		}
 
+		// Check for system types
+		if t, ok := isSystemType(namespace, name); ok {
+			return t, nil
+		}
+
 		elementTypeDef, err := g.mdStore.TypeDefByName(namespace + "." + name)
 		if err != nil {
 			return nil, err
@@ -960,14 +965,50 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 
 		// e.Type.SZArray.Elem should be non-nil
 		param, err := g.elementType(ctx, *e.Type.SZArray.Elem)
+		if err != nil {
+			return nil, err
+		}
+
 		param.IsArray = true
 		// override default val
 		param.defaultValue = genDefaultValue{"nil", true}
 
 		return param, err
+	case types.ELEMENT_TYPE_OBJECT:
+		// This represents System.Object, so just use a pointer
+		return &genParamType{
+			namespace:    "unsafe",
+			name:         "Pointer",
+			IsPointer:    false,
+			IsPrimitive:  false,
+			IsArray:      false,
+			defaultValue: genDefaultValue{"nil", true},
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported element type: %v", e.Type.Kind)
 	}
+}
+
+func isSystemType(namespace, name string) (*genParamType, bool) {
+	if namespace != "System" {
+		return nil, false
+	}
+	switch name {
+	case "Guid":
+		// System.Guid is a struct (value type), so we can just
+		// use syscall.GUID which has the same structure
+		return &genParamType{
+			namespace:    "syscall",
+			name:         "GUID",
+			IsPointer:    false,
+			IsPrimitive:  false,
+			IsArray:      false,
+			IsEnum:       false,
+			defaultValue: genDefaultValue{value: "GUID{}", isPrimitive: false},
+		}, true
+	}
+
+	return nil, false
 }
 
 func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) genDefaultValue {
@@ -1016,6 +1057,8 @@ func (g *generator) elementDefaultValue(ctx *types.Context, e types.Element) gen
 
 		return genDefaultValue{"nil", true}
 	case types.ELEMENT_TYPE_VAR:
+		return genDefaultValue{"nil", true}
+	case types.ELEMENT_TYPE_OBJECT:
 		return genDefaultValue{"nil", true}
 	default:
 		return genDefaultValue{"__ERROR_" + fmt.Errorf("unsupported element type: %v", e.Type.Kind).Error(), true}
