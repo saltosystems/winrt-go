@@ -201,9 +201,9 @@ func (v *iBluetoothLEDevice3) GetGattServicesWithCacheModeAsync(cacheMode Blueto
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetGattServicesWithCacheModeAsync,
-		uintptr(unsafe.Pointer(v)),          // this
-		uintptr(unsafe.Pointer(&cacheMode)), // in BluetoothCacheMode
-		uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(cacheMode),            // in BluetoothCacheMode
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
 	)
 
 	if hr != 0 {
@@ -295,10 +295,10 @@ func FromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoothAddress uint64, 
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().FromBluetoothAddressWithBluetoothAddressTypeAsync,
-		0,                         // this is a static func, so there's no this
-		uintptr(bluetoothAddress), // in uint64
-		uintptr(unsafe.Pointer(&bluetoothAddressType)), // in BluetoothAddressType
-		uintptr(unsafe.Pointer(&out)),                  // out foundation.IAsyncOperation
+		0,                             // this is a static func, so there's no this
+		uintptr(bluetoothAddress),     // in uint64
+		uintptr(bluetoothAddressType), // in BluetoothAddressType
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
 	)
 
 	if hr != 0 {
