@@ -93,7 +93,7 @@ func (v *iGattSession) SetMaintainConnection(value bool) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetMaintainConnection,
 		uintptr(unsafe.Pointer(v)),                // this
-		uintptr(*(*byte)(unsafe.Pointer(&value))), // in value
+		uintptr(*(*byte)(unsafe.Pointer(&value))), // in bool
 	)
 
 	if hr != 0 {

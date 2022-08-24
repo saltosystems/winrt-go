@@ -153,7 +153,7 @@ func (v *iGattDeviceService3) GetCharacteristicsWithCacheModeAsync(cacheMode blu
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetCharacteristicsWithCacheModeAsync,
 		uintptr(unsafe.Pointer(v)),          // this
-		uintptr(unsafe.Pointer(&cacheMode)), // in cacheMode
+		uintptr(unsafe.Pointer(&cacheMode)), // in bluetooth.BluetoothCacheMode
 		uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
 	)
 

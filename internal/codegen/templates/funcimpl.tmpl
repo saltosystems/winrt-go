@@ -40,11 +40,11 @@ hr, _, _ := syscall.SyscallN(
         uintptr(unsafe.Pointer(v)), // this
     {{end -}}
     {{range (concat .InParams .ReturnParams) -}}
-        {{if .IsOut -}}
-            {{if .Type.IsArray -}}
-                {{/* Arrays need to pass a pointer to their first element */ -}}
-                uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // out {{.GoTypeName}}
-            {{else if .Type.IsPrimitive -}}
+        {{if .Type.IsArray -}}
+            {{/* Arrays need to pass a pointer to their first element */ -}}
+            uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // {{if .IsOut}}out{{else}}in{{end}} {{.GoTypeName}}
+        {{else if .IsOut -}}
+            {{if .Type.IsPrimitive -}}
                 {{if eq .GoTypeName "string" -}}
                     uintptr(unsafe.Pointer(&{{.GoVarName}}HStr)),   // out {{.GoTypeName}}
                 {{else -}}
@@ -57,14 +57,14 @@ hr, _, _ := syscall.SyscallN(
             uintptr(unsafe.Pointer({{.GoVarName}})),   // in {{.GoTypeName}}
         {{else if .Type.IsPrimitive -}}
             {{ if eq .GoTypeName "bool" -}}
-                uintptr(*(*byte)(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoVarName}}
+                uintptr(*(*byte)(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoTypeName}}
             {{ else if eq .GoTypeName "string" -}}
-                uintptr({{.GoVarName}}HStr),   // in {{.GoVarName}}
+                uintptr({{.GoVarName}}HStr),   // in {{.GoTypeName}}
             {{else -}}
-                uintptr({{.GoVarName}}),   // in {{.GoVarName}}
+                uintptr({{.GoVarName}}),   // in {{.GoTypeName}}
             {{end -}}
         {{else -}}
-            uintptr(unsafe.Pointer(&{{.GoVarName}})),   // in {{.GoVarName}}
+            uintptr(unsafe.Pointer(&{{.GoVarName}})),   // in {{.GoTypeName}}
         {{end -}}
     {{end -}}
 )

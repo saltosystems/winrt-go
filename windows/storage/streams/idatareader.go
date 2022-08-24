@@ -59,7 +59,7 @@ func (v *IDataReader) ReadBytes(valueSize uint32) ([]uint8, error) {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().ReadBytes,
 		uintptr(unsafe.Pointer(v)),         // this
-		uintptr(valueSize),                 // in valueSize
+		uintptr(valueSize),                 // in uint32
 		uintptr(unsafe.Pointer(&value[0])), // out uint8
 	)
 

@@ -131,7 +131,7 @@ func (v *iBluetoothLEDevice) RemoveConnectionStatusChanged(token foundation.Even
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveConnectionStatusChanged,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in token
+		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -202,7 +202,7 @@ func (v *iBluetoothLEDevice3) GetGattServicesWithCacheModeAsync(cacheMode Blueto
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetGattServicesWithCacheModeAsync,
 		uintptr(unsafe.Pointer(v)),          // this
-		uintptr(unsafe.Pointer(&cacheMode)), // in cacheMode
+		uintptr(unsafe.Pointer(&cacheMode)), // in BluetoothCacheMode
 		uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
 	)
 
@@ -296,8 +296,8 @@ func FromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoothAddress uint64, 
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().FromBluetoothAddressWithBluetoothAddressTypeAsync,
 		0,                         // this is a static func, so there's no this
-		uintptr(bluetoothAddress), // in bluetoothAddress
-		uintptr(unsafe.Pointer(&bluetoothAddressType)), // in bluetoothAddressType
+		uintptr(bluetoothAddress), // in uint64
+		uintptr(unsafe.Pointer(&bluetoothAddressType)), // in BluetoothAddressType
 		uintptr(unsafe.Pointer(&out)),                  // out foundation.IAsyncOperation
 	)
 
@@ -338,7 +338,7 @@ func FromBluetoothAddressAsync(bluetoothAddress uint64) (*foundation.IAsyncOpera
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().FromBluetoothAddressAsync,
 		0,                             // this is a static func, so there's no this
-		uintptr(bluetoothAddress),     // in bluetoothAddress
+		uintptr(bluetoothAddress),     // in uint64
 		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
 	)
 
