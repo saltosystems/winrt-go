@@ -112,7 +112,7 @@ func (v *iBluetoothLEAdvertisement) SetLocalName(value string) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetLocalName,
 		uintptr(unsafe.Pointer(v)), // this
-		uintptr(valueHStr),         // in value
+		uintptr(valueHStr),         // in string
 	)
 
 	if hr != 0 {

@@ -37,7 +37,7 @@ func (v *IVectorView) GetAt(index uint32) (unsafe.Pointer, error) {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetAt,
 		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(index),                // in index
+		uintptr(index),                // in uint32
 		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
 	)
 
@@ -69,7 +69,7 @@ func (v *IVectorView) IndexOf(value unsafe.Pointer) (uint32, bool, error) {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().IndexOf,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&value)), // in value
+		uintptr(unsafe.Pointer(&value)), // in unsafe.Pointer
 		uintptr(unsafe.Pointer(&index)), // out uint32
 		uintptr(unsafe.Pointer(&out)),   // out bool
 	)
@@ -87,8 +87,8 @@ func (v *IVectorView) GetMany(startIndex uint32, itemsSize uint32) ([]unsafe.Poi
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetMany,
 		uintptr(unsafe.Pointer(v)),         // this
-		uintptr(startIndex),                // in startIndex
-		uintptr(itemsSize),                 // in itemsSize
+		uintptr(startIndex),                // in uint32
+		uintptr(itemsSize),                 // in uint32
 		uintptr(unsafe.Pointer(&items[0])), // out unsafe.Pointer
 		uintptr(unsafe.Pointer(&out)),      // out uint32
 	)

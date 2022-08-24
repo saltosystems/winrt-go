@@ -94,7 +94,7 @@ func (v *iBluetoothLEManufacturerData) SetCompanyId(value uint16) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetCompanyId,
 		uintptr(unsafe.Pointer(v)), // this
-		uintptr(value),             // in value
+		uintptr(value),             // in uint16
 	)
 
 	if hr != 0 {
@@ -161,7 +161,7 @@ func Create(companyId uint16, data *streams.IBuffer) (*BluetoothLEManufacturerDa
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().Create,
 		0,                             // this is a static func, so there's no this
-		uintptr(companyId),            // in companyId
+		uintptr(companyId),            // in uint16
 		uintptr(unsafe.Pointer(data)), // in streams.IBuffer
 		uintptr(unsafe.Pointer(&out)), // out BluetoothLEManufacturerData
 	)

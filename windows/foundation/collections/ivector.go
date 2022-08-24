@@ -45,7 +45,7 @@ func (v *IVector) GetAt(index uint32) (unsafe.Pointer, error) {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetAt,
 		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(index),                // in index
+		uintptr(index),                // in uint32
 		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
 	)
 
@@ -92,7 +92,7 @@ func (v *IVector) IndexOf(value unsafe.Pointer) (uint32, bool, error) {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().IndexOf,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&value)), // in value
+		uintptr(unsafe.Pointer(&value)), // in unsafe.Pointer
 		uintptr(unsafe.Pointer(&index)), // out uint32
 		uintptr(unsafe.Pointer(&out)),   // out bool
 	)
@@ -108,8 +108,8 @@ func (v *IVector) SetAt(index uint32, value unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().SetAt,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(index),                  // in index
-		uintptr(unsafe.Pointer(&value)), // in value
+		uintptr(index),                  // in uint32
+		uintptr(unsafe.Pointer(&value)), // in unsafe.Pointer
 	)
 
 	if hr != 0 {
@@ -123,8 +123,8 @@ func (v *IVector) InsertAt(index uint32, value unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().InsertAt,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(index),                  // in index
-		uintptr(unsafe.Pointer(&value)), // in value
+		uintptr(index),                  // in uint32
+		uintptr(unsafe.Pointer(&value)), // in unsafe.Pointer
 	)
 
 	if hr != 0 {
@@ -138,7 +138,7 @@ func (v *IVector) RemoveAt(index uint32) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveAt,
 		uintptr(unsafe.Pointer(v)), // this
-		uintptr(index),             // in index
+		uintptr(index),             // in uint32
 	)
 
 	if hr != 0 {
@@ -152,7 +152,7 @@ func (v *IVector) Append(value unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().Append,
 		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&value)), // in value
+		uintptr(unsafe.Pointer(&value)), // in unsafe.Pointer
 	)
 
 	if hr != 0 {
@@ -194,8 +194,8 @@ func (v *IVector) GetMany(startIndex uint32, itemsSize uint32) ([]unsafe.Pointer
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetMany,
 		uintptr(unsafe.Pointer(v)),         // this
-		uintptr(startIndex),                // in startIndex
-		uintptr(itemsSize),                 // in itemsSize
+		uintptr(startIndex),                // in uint32
+		uintptr(itemsSize),                 // in uint32
 		uintptr(unsafe.Pointer(&items[0])), // out unsafe.Pointer
 		uintptr(unsafe.Pointer(&out)),      // out uint32
 	)
@@ -210,9 +210,9 @@ func (v *IVector) GetMany(startIndex uint32, itemsSize uint32) ([]unsafe.Pointer
 func (v *IVector) ReplaceAll(itemsSize uint32, items []unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().ReplaceAll,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(itemsSize),              // in itemsSize
-		uintptr(unsafe.Pointer(&items)), // in items
+		uintptr(unsafe.Pointer(v)),         // this
+		uintptr(itemsSize),                 // in uint32
+		uintptr(unsafe.Pointer(&items[0])), // in unsafe.Pointer
 	)
 
 	if hr != 0 {
