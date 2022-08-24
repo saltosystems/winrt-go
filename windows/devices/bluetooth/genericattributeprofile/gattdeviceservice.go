@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
@@ -31,6 +32,20 @@ func (impl *GattDeviceService) Close() error {
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()
+}
+
+func (impl *GattDeviceService) GetCharacteristicsAsync() (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	defer itf.Release()
+	v := (*iGattDeviceService3)(unsafe.Pointer(itf))
+	return v.GetCharacteristicsAsync()
+}
+
+func (impl *GattDeviceService) GetCharacteristicsWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	defer itf.Release()
+	v := (*iGattDeviceService3)(unsafe.Pointer(itf))
+	return v.GetCharacteristicsWithCacheModeAsync(cacheMode)
 }
 
 const GUIDiGattDeviceService string = "ac7b7c05-b33c-47cf-990f-6b8f5577df71"
@@ -116,4 +131,35 @@ type iGattDeviceService3Vtbl struct {
 
 func (v *iGattDeviceService3) VTable() *iGattDeviceService3Vtbl {
 	return (*iGattDeviceService3Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iGattDeviceService3) GetCharacteristicsAsync() (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetCharacteristicsAsync,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattDeviceService3) GetCharacteristicsWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetCharacteristicsWithCacheModeAsync,
+		uintptr(unsafe.Pointer(v)),          // this
+		uintptr(unsafe.Pointer(&cacheMode)), // in cacheMode
+		uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
 }
