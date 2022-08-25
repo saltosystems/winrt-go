@@ -44,7 +44,7 @@ hr, _, _ := syscall.SyscallN(
             {{/* Arrays need to pass a pointer to their first element */ -}}
             uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // {{if .IsOut}}out{{else}}in{{end}} {{.GoTypeName}}
         {{else if .IsOut -}}
-            {{if .Type.IsPrimitive -}}
+            {{if (or .Type.IsPrimitive .Type.IsEnum) -}}
                 {{if eq .GoTypeName "string" -}}
                     uintptr(unsafe.Pointer(&{{.GoVarName}}HStr)),   // out {{.GoTypeName}}
                 {{else -}}
@@ -55,7 +55,7 @@ hr, _, _ := syscall.SyscallN(
             {{end -}}
         {{else if .Type.IsPointer -}}
             uintptr(unsafe.Pointer({{.GoVarName}})),   // in {{.GoTypeName}}
-        {{else if .Type.IsPrimitive -}}
+        {{else if (or .Type.IsPrimitive .Type.IsEnum) -}}
             {{ if eq .GoTypeName "bool" -}}
                 uintptr(*(*byte)(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoTypeName}}
             {{ else if eq .GoTypeName "string" -}}
