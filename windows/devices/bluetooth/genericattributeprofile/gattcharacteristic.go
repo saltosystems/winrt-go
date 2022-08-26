@@ -10,6 +10,9 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth"
+	"github.com/saltosystems/winrt-go/windows/foundation"
+	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
 const SignatureGattCharacteristic string = "rc(Windows.Devices.Bluetooth.GenericAttributeProfile.GattCharacteristic;{59cb50c1-5934-4f68-a198-eb864fa44e6b})"
@@ -30,6 +33,55 @@ func (impl *GattCharacteristic) GetUuid() (syscall.GUID, error) {
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.GetUuid()
+}
+
+func (impl *GattCharacteristic) ReadValueAsync() (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.ReadValueAsync()
+}
+
+func (impl *GattCharacteristic) ReadValueWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.ReadValueWithCacheModeAsync(cacheMode)
+}
+
+func (impl *GattCharacteristic) WriteValueAsync(value *streams.IBuffer) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.WriteValueAsync(value)
+}
+
+func (impl *GattCharacteristic) WriteValueWithOptionAsync(value *streams.IBuffer, writeOption GattWriteOption) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.WriteValueWithOptionAsync(value, writeOption)
+}
+
+func (impl *GattCharacteristic) WriteClientCharacteristicConfigurationDescriptorAsync(clientCharacteristicConfigurationDescriptorValue GattClientCharacteristicConfigurationDescriptorValue) (*foundation.IAsyncOperation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.WriteClientCharacteristicConfigurationDescriptorAsync(clientCharacteristicConfigurationDescriptorValue)
+}
+
+func (impl *GattCharacteristic) AddValueChanged(valueChangedHandler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.AddValueChanged(valueChangedHandler)
+}
+
+func (impl *GattCharacteristic) RemoveValueChanged(valueChangedEventCookie foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	defer itf.Release()
+	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
+	return v.RemoveValueChanged(valueChangedEventCookie)
 }
 
 const GUIDiGattCharacteristic string = "59cb50c1-5934-4f68-a198-eb864fa44e6b"
@@ -92,6 +144,116 @@ func (v *iGattCharacteristic) GetUuid() (syscall.GUID, error) {
 	}
 
 	return out, nil
+}
+
+func (v *iGattCharacteristic) ReadValueAsync() (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().ReadValueAsync,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) ReadValueWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().ReadValueWithCacheModeAsync,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(cacheMode),            // in bluetooth.BluetoothCacheMode
+		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) WriteValueAsync(value *streams.IBuffer) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().WriteValueAsync,
+		uintptr(unsafe.Pointer(v)),     // this
+		uintptr(unsafe.Pointer(value)), // in streams.IBuffer
+		uintptr(unsafe.Pointer(&out)),  // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) WriteValueWithOptionAsync(value *streams.IBuffer, writeOption GattWriteOption) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().WriteValueWithOptionAsync,
+		uintptr(unsafe.Pointer(v)),     // this
+		uintptr(unsafe.Pointer(value)), // in streams.IBuffer
+		uintptr(writeOption),           // in GattWriteOption
+		uintptr(unsafe.Pointer(&out)),  // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) WriteClientCharacteristicConfigurationDescriptorAsync(clientCharacteristicConfigurationDescriptorValue GattClientCharacteristicConfigurationDescriptorValue) (*foundation.IAsyncOperation, error) {
+	var out *foundation.IAsyncOperation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().WriteClientCharacteristicConfigurationDescriptorAsync,
+		uintptr(unsafe.Pointer(v)),                                // this
+		uintptr(clientCharacteristicConfigurationDescriptorValue), // in GattClientCharacteristicConfigurationDescriptorValue
+		uintptr(unsafe.Pointer(&out)),                             // out foundation.IAsyncOperation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) AddValueChanged(valueChangedHandler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	var out foundation.EventRegistrationToken
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().AddValueChanged,
+		uintptr(unsafe.Pointer(v)),                   // this
+		uintptr(unsafe.Pointer(valueChangedHandler)), // in foundation.TypedEventHandler
+		uintptr(unsafe.Pointer(&out)),                // out foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristic) RemoveValueChanged(valueChangedEventCookie foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveValueChanged,
+		uintptr(unsafe.Pointer(v)),                        // this
+		uintptr(unsafe.Pointer(&valueChangedEventCookie)), // in foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
 
 const GUIDiGattCharacteristic2 string = "ae1ab578-ec06-4764-b780-9835a1d35d6e"
