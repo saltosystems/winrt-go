@@ -2,7 +2,7 @@
 
 //go:build windows
 
-//nolint
+//nolint:all
 package foundation
 
 const SignatureEventRegistrationToken string = "struct(Windows.Foundation.EventRegistrationToken;i8)"

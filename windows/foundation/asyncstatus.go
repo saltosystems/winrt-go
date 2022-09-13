@@ -2,7 +2,7 @@
 
 //go:build windows
 
-//nolint
+//nolint:all
 package foundation
 
 type AsyncStatus int32

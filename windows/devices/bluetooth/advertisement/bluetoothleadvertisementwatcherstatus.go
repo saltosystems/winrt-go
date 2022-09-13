@@ -2,7 +2,7 @@
 
 //go:build windows
 
-//nolint
+//nolint:all
 package advertisement
 
 type BluetoothLEAdvertisementWatcherStatus int32

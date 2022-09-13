@@ -2,7 +2,7 @@
 
 //go:build windows
 
-//nolint
+//nolint:all
 package bluetooth
 
 type BluetoothAddressType int32
