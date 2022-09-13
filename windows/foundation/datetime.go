@@ -2,7 +2,7 @@
 
 //go:build windows
 
-//nolint
+//nolint:all
 package foundation
 
 const SignatureDateTime string = "struct(Windows.Foundation.DateTime;i8)"
