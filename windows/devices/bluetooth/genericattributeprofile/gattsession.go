@@ -41,6 +41,27 @@ func (impl *GattSession) GetMaintainConnection() (bool, error) {
 	return v.GetMaintainConnection()
 }
 
+func (impl *GattSession) GetMaxPduSize() (uint16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.GetMaxPduSize()
+}
+
+func (impl *GattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.AddMaxPduSizeChanged(handler)
+}
+
+func (impl *GattSession) RemoveMaxPduSizeChanged(token foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.RemoveMaxPduSizeChanged(token)
+}
+
 func (impl *GattSession) Close() error {
 	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
 	defer itf.Release()
@@ -116,6 +137,51 @@ func (v *iGattSession) GetMaintainConnection() (bool, error) {
 	}
 
 	return out, nil
+}
+
+func (v *iGattSession) GetMaxPduSize() (uint16, error) {
+	var out uint16
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetMaxPduSize,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out uint16
+	)
+
+	if hr != 0 {
+		return 0, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	var out foundation.EventRegistrationToken
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().AddMaxPduSizeChanged,
+		uintptr(unsafe.Pointer(v)),       // this
+		uintptr(unsafe.Pointer(handler)), // in foundation.TypedEventHandler
+		uintptr(unsafe.Pointer(&out)),    // out foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattSession) RemoveMaxPduSizeChanged(token foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveMaxPduSizeChanged,
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
 
 const GUIDiGattSessionStatics string = "2e65b95c-539f-4db7-82a8-73bdbbf73ebf"
