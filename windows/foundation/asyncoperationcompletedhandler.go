@@ -6,10 +6,10 @@
 package foundation
 
 import (
+	"sync"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go"
 )
 
 /*
@@ -51,20 +51,42 @@ const SignatureAsyncOperationCompletedHandler string = "delegate({fcdcf02c-e5d8-
 
 type AsyncOperationCompletedHandler struct {
 	ole.IUnknown
-	IID      *ole.GUID
-	RefCount *winrt.RefCount
-	Callback AsyncOperationCompletedHandlerCallback
+	sync.Mutex
+	refs uint64
+	IID  ole.GUID
 }
 
 type AsyncOperationCompletedHandlerCallback func(instance *AsyncOperationCompletedHandler, asyncInfo *IAsyncOperation, asyncStatus AsyncStatus)
 
+var callbacksAsyncOperationCompletedHandler map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback = make(map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback)
+
 func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCompletedHandlerCallback) *AsyncOperationCompletedHandler {
 	inst := (*AsyncOperationCompletedHandler)(C.malloc(C.size_t(unsafe.Sizeof(AsyncOperationCompletedHandler{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getAsyncOperationCompletedHandlerVtbl()))
-	inst.IID = iid
-	inst.RefCount = winrt.NewRefCount()
-	inst.Callback = callback
+	inst.IID = *iid // copy contents
 
-	inst.RefCount.AddRef()
+	callbacksAsyncOperationCompletedHandler[unsafe.Pointer(inst)] = callback
+
+	inst.addRef()
 	return inst
+}
+
+// addRef increments the reference counter by one
+func (r *AsyncOperationCompletedHandler) addRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+	r.refs++
+	return r.refs
+}
+
+// removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
+func (r *AsyncOperationCompletedHandler) removeRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.refs > 0 {
+		r.refs--
+	}
+
+	return r.refs
 }

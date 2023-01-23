@@ -37,22 +37,44 @@ const Signature{{.Name}} string = "{{.Signature}}"
 
 type {{.Name}} struct {
 	ole.IUnknown
-	IID      *ole.GUID
-	RefCount *winrt.RefCount
-	Callback {{.Name}}Callback
+	sync.Mutex
+	refs uint64
+	IID  ole.GUID
 }
 
 type {{.Name}}Callback func(instance *{{.Name}},{{- range .InParams -}}
 	{{.GoVarName}} {{template "variabletype.tmpl" . }},
 {{- end -}})
 
-func New{{.Name}}(iid *ole.GUID, callback {{.Name}}Callback) *{{.Name}} {
-    inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
-    inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
-    inst.IID = iid
-    inst.RefCount = winrt.NewRefCount()
-    inst.Callback = callback
+var callbacks{{.Name}} map[unsafe.Pointer]{{.Name}}Callback = make(map[unsafe.Pointer]{{.Name}}Callback)
 
-	inst.RefCount.AddRef()
-    return inst
+func New{{.Name}}(iid *ole.GUID, callback {{.Name}}Callback) *{{.Name}} {
+	inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
+	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
+	inst.IID = *iid // copy contents
+
+	callbacks{{.Name}}[unsafe.Pointer(inst)] = callback
+
+	inst.addRef()
+	return inst
+}
+
+// addRef increments the reference counter by one
+func (r *{{.Name}}) addRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+	r.refs++
+	return r.refs
+}
+
+// removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
+func (r *{{.Name}}) removeRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.refs > 0 {
+		r.refs--
+	}
+
+	return r.refs
 }

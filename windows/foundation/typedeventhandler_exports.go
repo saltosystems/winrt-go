@@ -31,7 +31,7 @@ func winrt_TypedEventHandler_QueryInterface(instancePtr, iidPtr unsafe.Pointer, 
 	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
 	iid := (*ole.GUID)(iidPtr)
 	instance := (*TypedEventHandler)(instancePtr)
-	if ole.IsEqualGUID(iid, instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
 		*ppvObject = unsafe.Pointer(instance)
 	} else {
 		*ppvObject = nil
@@ -53,23 +53,25 @@ func winrt_TypedEventHandler_Invoke(instancePtr unsafe.Pointer, senderPtr unsafe
 	instance := (*TypedEventHandler)(instancePtr)
 	sender := (unsafe.Pointer)(senderPtr)
 	args := (unsafe.Pointer)(argsPtr)
-	instance.Callback(instance, sender, args)
+	if callback, ok := callbacksTypedEventHandler[instancePtr]; ok {
+		callback(instance, sender, args)
+	}
 	return ole.S_OK
 }
 
 //export winrt_TypedEventHandler_AddRef
 func winrt_TypedEventHandler_AddRef(instancePtr unsafe.Pointer) uint64 {
 	instance := (*TypedEventHandler)(instancePtr)
-	return instance.RefCount.AddRef()
+	return instance.addRef()
 }
 
 //export winrt_TypedEventHandler_Release
 func winrt_TypedEventHandler_Release(instancePtr unsafe.Pointer) uint64 {
 	instance := (*TypedEventHandler)(instancePtr)
-	rem := instance.RefCount.Release()
+	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
-		instance.Callback = nil
+		delete(callbacksTypedEventHandler, instancePtr)
 		C.free(instancePtr)
 	}
 	return rem
