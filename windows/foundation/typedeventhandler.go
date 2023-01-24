@@ -6,10 +6,10 @@
 package foundation
 
 import (
+	"sync"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go"
 )
 
 /*
@@ -51,20 +51,42 @@ const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a
 
 type TypedEventHandler struct {
 	ole.IUnknown
-	IID      *ole.GUID
-	RefCount *winrt.RefCount
-	Callback TypedEventHandlerCallback
+	sync.Mutex
+	refs uint64
+	IID  ole.GUID
 }
 
 type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
+var callbacksTypedEventHandler map[unsafe.Pointer]TypedEventHandlerCallback = make(map[unsafe.Pointer]TypedEventHandlerCallback)
+
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
-	inst.IID = iid
-	inst.RefCount = winrt.NewRefCount()
-	inst.Callback = callback
+	inst.IID = *iid // copy contents
 
-	inst.RefCount.AddRef()
+	callbacksTypedEventHandler[unsafe.Pointer(inst)] = callback
+
+	inst.addRef()
 	return inst
+}
+
+// addRef increments the reference counter by one
+func (r *TypedEventHandler) addRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+	r.refs++
+	return r.refs
+}
+
+// removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
+func (r *TypedEventHandler) removeRef() uint64 {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.refs > 0 {
+		r.refs--
+	}
+
+	return r.refs
 }

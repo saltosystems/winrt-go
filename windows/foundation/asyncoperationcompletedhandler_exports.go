@@ -31,7 +31,7 @@ func winrt_AsyncOperationCompletedHandler_QueryInterface(instancePtr, iidPtr uns
 	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
 	iid := (*ole.GUID)(iidPtr)
 	instance := (*AsyncOperationCompletedHandler)(instancePtr)
-	if ole.IsEqualGUID(iid, instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
 		*ppvObject = unsafe.Pointer(instance)
 	} else {
 		*ppvObject = nil
@@ -53,23 +53,25 @@ func winrt_AsyncOperationCompletedHandler_Invoke(instancePtr unsafe.Pointer, asy
 	instance := (*AsyncOperationCompletedHandler)(instancePtr)
 	asyncInfo := (*IAsyncOperation)(asyncInfoPtr)
 	asyncStatus := (AsyncStatus)(asyncStatusRaw)
-	instance.Callback(instance, asyncInfo, asyncStatus)
+	if callback, ok := callbacksAsyncOperationCompletedHandler[instancePtr]; ok {
+		callback(instance, asyncInfo, asyncStatus)
+	}
 	return ole.S_OK
 }
 
 //export winrt_AsyncOperationCompletedHandler_AddRef
 func winrt_AsyncOperationCompletedHandler_AddRef(instancePtr unsafe.Pointer) uint64 {
 	instance := (*AsyncOperationCompletedHandler)(instancePtr)
-	return instance.RefCount.AddRef()
+	return instance.addRef()
 }
 
 //export winrt_AsyncOperationCompletedHandler_Release
 func winrt_AsyncOperationCompletedHandler_Release(instancePtr unsafe.Pointer) uint64 {
 	instance := (*AsyncOperationCompletedHandler)(instancePtr)
-	rem := instance.RefCount.Release()
+	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
-		instance.Callback = nil
+		delete(callbacksAsyncOperationCompletedHandler, instancePtr)
 		C.free(instancePtr)
 	}
 	return rem
