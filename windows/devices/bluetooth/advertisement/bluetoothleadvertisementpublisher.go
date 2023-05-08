@@ -33,6 +33,13 @@ func (impl *BluetoothLEAdvertisementPublisher) GetStatus() (BluetoothLEAdvertise
 	return v.GetStatus()
 }
 
+func (impl *BluetoothLEAdvertisementPublisher) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementPublisher)(unsafe.Pointer(itf))
+	return v.GetAdvertisement()
+}
+
 func (impl *BluetoothLEAdvertisementPublisher) Start() error {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
 	defer itf.Release()
@@ -79,6 +86,21 @@ func (v *iBluetoothLEAdvertisementPublisher) GetStatus() (BluetoothLEAdvertiseme
 
 	if hr != 0 {
 		return BluetoothLEAdvertisementPublisherStatusCreated, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementPublisher) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
+	var out *BluetoothLEAdvertisement
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetAdvertisement,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEAdvertisement
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
 	}
 
 	return out, nil
