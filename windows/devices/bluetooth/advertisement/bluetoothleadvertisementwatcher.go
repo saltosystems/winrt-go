@@ -76,6 +76,20 @@ func (impl *BluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.Even
 	return v.RemoveStopped(token)
 }
 
+func (impl *BluetoothLEAdvertisementWatcher) GetAllowExtendedAdvertisements() (bool, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher2)(unsafe.Pointer(itf))
+	return v.GetAllowExtendedAdvertisements()
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) SetAllowExtendedAdvertisements(value bool) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher2)(unsafe.Pointer(itf))
+	return v.SetAllowExtendedAdvertisements(value)
+}
+
 const GUIDiBluetoothLEAdvertisementWatcher string = "a6ac336f-f3d3-4297-8d6c-c81ea6623f40"
 const SignatureiBluetoothLEAdvertisementWatcher string = "{a6ac336f-f3d3-4297-8d6c-c81ea6623f40}"
 
@@ -226,4 +240,33 @@ type iBluetoothLEAdvertisementWatcher2Vtbl struct {
 
 func (v *iBluetoothLEAdvertisementWatcher2) VTable() *iBluetoothLEAdvertisementWatcher2Vtbl {
 	return (*iBluetoothLEAdvertisementWatcher2Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iBluetoothLEAdvertisementWatcher2) GetAllowExtendedAdvertisements() (bool, error) {
+	var out bool
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetAllowExtendedAdvertisements,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out bool
+	)
+
+	if hr != 0 {
+		return false, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementWatcher2) SetAllowExtendedAdvertisements(value bool) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().SetAllowExtendedAdvertisements,
+		uintptr(unsafe.Pointer(v)),                // this
+		uintptr(*(*byte)(unsafe.Pointer(&value))), // in bool
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
