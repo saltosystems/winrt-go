@@ -34,6 +34,20 @@ func (impl *BluetoothLEAdvertisementWatcher) GetStatus() (BluetoothLEAdvertiseme
 	return v.GetStatus()
 }
 
+func (impl *BluetoothLEAdvertisementWatcher) GetScanningMode() (BluetoothLEScanningMode, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.GetScanningMode()
+}
+
+func (impl *BluetoothLEAdvertisementWatcher) SetScanningMode(value BluetoothLEScanningMode) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
+	return v.SetScanningMode(value)
+}
+
 func (impl *BluetoothLEAdvertisementWatcher) Start() error {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
 	defer itf.Release()
@@ -136,6 +150,35 @@ func (v *iBluetoothLEAdvertisementWatcher) GetStatus() (BluetoothLEAdvertisement
 	}
 
 	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementWatcher) GetScanningMode() (BluetoothLEScanningMode, error) {
+	var out BluetoothLEScanningMode
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetScanningMode,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEScanningMode
+	)
+
+	if hr != 0 {
+		return BluetoothLEScanningModePassive, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementWatcher) SetScanningMode(value BluetoothLEScanningMode) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().SetScanningMode,
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(value),             // in BluetoothLEScanningMode
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
 }
 
 func (v *iBluetoothLEAdvertisementWatcher) Start() error {
