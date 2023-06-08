@@ -53,7 +53,7 @@ func winrt_TypedEventHandler_Invoke(instancePtr unsafe.Pointer, senderPtr unsafe
 	instance := (*TypedEventHandler)(instancePtr)
 	sender := (unsafe.Pointer)(senderPtr)
 	args := (unsafe.Pointer)(argsPtr)
-	if callback, ok := callbacksTypedEventHandler[instancePtr]; ok {
+	if callback, ok := callbacksTypedEventHandler.get(instancePtr); ok {
 		callback(instance, sender, args)
 	}
 	return ole.S_OK
@@ -71,7 +71,7 @@ func winrt_TypedEventHandler_Release(instancePtr unsafe.Pointer) uint64 {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
-		delete(callbacksTypedEventHandler, instancePtr)
+		callbacksTypedEventHandler.delete(instancePtr)
 		C.free(instancePtr)
 	}
 	return rem

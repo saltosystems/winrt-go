@@ -53,7 +53,7 @@ func winrt_{{.Name}}_Invoke(instancePtr unsafe.Pointer {{range .InParams -}}
 			{{.GoVarName}} := ({{template "variabletype.tmpl" . }})({{.GoVarName}}Ptr)
 		{{end -}}
 	{{end -}}
-	if callback, ok := callbacks{{.Name}}[instancePtr]; ok {
+	if callback, ok := callbacks{{.Name}}.get(instancePtr); ok {
 		callback(instance, {{range .InParams}}{{.GoVarName}},{{end}})
 	}
 	return ole.S_OK
@@ -71,7 +71,7 @@ func winrt_{{.Name}}_Release(instancePtr unsafe.Pointer) uint64 {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
-		delete(callbacks{{.Name}}, instancePtr)
+		callbacks{{.Name}}.delete(instancePtr)
 		C.free(instancePtr)
 	}
 	return rem

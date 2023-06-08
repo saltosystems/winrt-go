@@ -53,7 +53,7 @@ func winrt_AsyncOperationCompletedHandler_Invoke(instancePtr unsafe.Pointer, asy
 	instance := (*AsyncOperationCompletedHandler)(instancePtr)
 	asyncInfo := (*IAsyncOperation)(asyncInfoPtr)
 	asyncStatus := (AsyncStatus)(asyncStatusRaw)
-	if callback, ok := callbacksAsyncOperationCompletedHandler[instancePtr]; ok {
+	if callback, ok := callbacksAsyncOperationCompletedHandler.get(instancePtr); ok {
 		callback(instance, asyncInfo, asyncStatus)
 	}
 	return ole.S_OK
@@ -71,7 +71,7 @@ func winrt_AsyncOperationCompletedHandler_Release(instancePtr unsafe.Pointer) ui
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
-		delete(callbacksAsyncOperationCompletedHandler, instancePtr)
+		callbacksAsyncOperationCompletedHandler.delete(instancePtr)
 		C.free(instancePtr)
 	}
 	return rem
