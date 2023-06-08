@@ -46,14 +46,17 @@ type {{.Name}}Callback func(instance *{{.Name}},{{- range .InParams -}}
 	{{.GoVarName}} {{template "variabletype.tmpl" . }},
 {{- end -}})
 
-var callbacks{{.Name}} map[unsafe.Pointer]{{.Name}}Callback = make(map[unsafe.Pointer]{{.Name}}Callback)
+var callbacks{{.Name}} = &{{.Name | toLower}}CallbacksMap {
+	mu:        &sync.Mutex{},
+	callbacks: make(map[unsafe.Pointer]{{.Name}}Callback),
+}
 
 func New{{.Name}}(iid *ole.GUID, callback {{.Name}}Callback) *{{.Name}} {
 	inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
 	inst.IID = *iid // copy contents
 
-	callbacks{{.Name}}[unsafe.Pointer(inst)] = callback
+	callbacks{{.Name}}.add(unsafe.Pointer(inst), callback)
 
 	inst.addRef()
 	return inst
@@ -77,4 +80,31 @@ func (r *{{.Name}}) removeRef() uint64 {
 	}
 
 	return r.refs
+}
+
+type {{.Name | toLower}}CallbacksMap struct {
+	mu        *sync.Mutex
+	callbacks map[unsafe.Pointer]{{.Name}}Callback
+}
+
+func (m *{{.Name | toLower}}CallbacksMap) add(p unsafe.Pointer, v {{.Name}}Callback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.callbacks[p] = v
+}
+
+func (m *{{.Name | toLower}}CallbacksMap) get(p unsafe.Pointer) ({{.Name}}Callback, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.callbacks[p]
+	return v, ok
+}
+
+func (m *{{.Name | toLower}}CallbacksMap) delete(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.callbacks, p)
 }

@@ -58,14 +58,17 @@ type AsyncOperationCompletedHandler struct {
 
 type AsyncOperationCompletedHandlerCallback func(instance *AsyncOperationCompletedHandler, asyncInfo *IAsyncOperation, asyncStatus AsyncStatus)
 
-var callbacksAsyncOperationCompletedHandler map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback = make(map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback)
+var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCallbacksMap{
+	mu:        &sync.Mutex{},
+	callbacks: make(map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback),
+}
 
 func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCompletedHandlerCallback) *AsyncOperationCompletedHandler {
 	inst := (*AsyncOperationCompletedHandler)(C.malloc(C.size_t(unsafe.Sizeof(AsyncOperationCompletedHandler{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getAsyncOperationCompletedHandlerVtbl()))
 	inst.IID = *iid // copy contents
 
-	callbacksAsyncOperationCompletedHandler[unsafe.Pointer(inst)] = callback
+	callbacksAsyncOperationCompletedHandler.add(unsafe.Pointer(inst), callback)
 
 	inst.addRef()
 	return inst
@@ -89,4 +92,31 @@ func (r *AsyncOperationCompletedHandler) removeRef() uint64 {
 	}
 
 	return r.refs
+}
+
+type asyncOperationCompletedHandlerCallbacksMap struct {
+	mu        *sync.Mutex
+	callbacks map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback
+}
+
+func (m *asyncOperationCompletedHandlerCallbacksMap) add(p unsafe.Pointer, v AsyncOperationCompletedHandlerCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.callbacks[p] = v
+}
+
+func (m *asyncOperationCompletedHandlerCallbacksMap) get(p unsafe.Pointer) (AsyncOperationCompletedHandlerCallback, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.callbacks[p]
+	return v, ok
+}
+
+func (m *asyncOperationCompletedHandlerCallbacksMap) delete(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.callbacks, p)
 }

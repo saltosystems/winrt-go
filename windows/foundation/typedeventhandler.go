@@ -58,14 +58,17 @@ type TypedEventHandler struct {
 
 type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
-var callbacksTypedEventHandler map[unsafe.Pointer]TypedEventHandlerCallback = make(map[unsafe.Pointer]TypedEventHandlerCallback)
+var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
+	mu:        &sync.Mutex{},
+	callbacks: make(map[unsafe.Pointer]TypedEventHandlerCallback),
+}
 
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
 	inst.IID = *iid // copy contents
 
-	callbacksTypedEventHandler[unsafe.Pointer(inst)] = callback
+	callbacksTypedEventHandler.add(unsafe.Pointer(inst), callback)
 
 	inst.addRef()
 	return inst
@@ -89,4 +92,31 @@ func (r *TypedEventHandler) removeRef() uint64 {
 	}
 
 	return r.refs
+}
+
+type typedEventHandlerCallbacksMap struct {
+	mu        *sync.Mutex
+	callbacks map[unsafe.Pointer]TypedEventHandlerCallback
+}
+
+func (m *typedEventHandlerCallbacksMap) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.callbacks[p] = v
+}
+
+func (m *typedEventHandlerCallbacksMap) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.callbacks[p]
+	return v, ok
+}
+
+func (m *typedEventHandlerCallbacksMap) delete(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.callbacks, p)
 }

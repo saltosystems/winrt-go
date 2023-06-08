@@ -220,6 +220,9 @@ func funcs() template.FuncMap {
 		"concat": func(a, b []*genParam) []*genParam {
 			return append(a, b...)
 		},
+		"toLower": func(s string) string {
+			return strings.ToLower(s[:1]) + s[1:]
+		},
 	}
 }
 
