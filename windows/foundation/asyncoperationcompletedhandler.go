@@ -65,8 +65,11 @@ var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCal
 
 func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCompletedHandlerCallback) *AsyncOperationCompletedHandler {
 	inst := (*AsyncOperationCompletedHandler)(C.malloc(C.size_t(unsafe.Sizeof(AsyncOperationCompletedHandler{}))))
+	// Override all properties: the malloc may contain garbage
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getAsyncOperationCompletedHandlerVtbl()))
 	inst.IID = *iid // copy contents
+	inst.Mutex = sync.Mutex{}
+	inst.refs = 0
 
 	callbacksAsyncOperationCompletedHandler.add(unsafe.Pointer(inst), callback)
 

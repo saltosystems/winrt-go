@@ -53,8 +53,11 @@ var callbacks{{.Name}} = &{{.Name | toLower}}CallbacksMap {
 
 func New{{.Name}}(iid *ole.GUID, callback {{.Name}}Callback) *{{.Name}} {
 	inst := (*{{.Name}})(C.malloc(C.size_t(unsafe.Sizeof({{.Name}}{}))))
+	// Override all properties: the malloc may contain garbage
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_get{{.Name}}Vtbl()))
 	inst.IID = *iid // copy contents
+	inst.Mutex = sync.Mutex{}
+	inst.refs = 0
 
 	callbacks{{.Name}}.add(unsafe.Pointer(inst), callback)
 
