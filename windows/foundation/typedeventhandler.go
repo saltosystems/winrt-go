@@ -65,8 +65,11 @@ var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
 
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
 	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
+	// Override all properties: the malloc may contain garbage
 	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
 	inst.IID = *iid // copy contents
+	inst.Mutex = sync.Mutex{}
+	inst.refs = 0
 
 	callbacksTypedEventHandler.add(unsafe.Pointer(inst), callback)
 
