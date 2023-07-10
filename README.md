@@ -39,8 +39,10 @@ Usage of winrt-go-gen:
   -debug
         Enables the debug logging.
   -method-filter value
-        The filter to use when generating the methods. This option can be set several times, the given filters will be applied in order, and the first that matches will determine the result. The generator
-        will allow any method by default.
+        The filter to use when generating the methods. This option can be set several times, 
+        the given filters will be applied in order, and the first that matches will determine the result. The generator
+        will allow any method by default. The filter uses the overloaded method name to discriminate between overloaded
+        methods.
     
         You can use the '!' character to negate a filter. For example, to generate all methods except the 'Add' method:
             -method-filter !Add
