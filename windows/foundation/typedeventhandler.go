@@ -7,44 +7,12 @@ package foundation
 
 import (
 	"sync"
+	"syscall"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
-
-/*
-#include <stdint.h>
-
-// Note: these functions have a different signature but because they are only
-// used as function pointers (and never called) and because they use C name
-// mangling, the signature doesn't really matter.
-void winrt_TypedEventHandler_Invoke(void);
-void winrt_TypedEventHandler_QueryInterface(void);
-uint64_t winrt_TypedEventHandler_AddRef(void);
-uint64_t winrt_TypedEventHandler_Release(void);
-
-// The Vtable structure for WinRT TypedEventHandler interfaces.
-typedef struct {
-	void *QueryInterface;
-	void *AddRef;
-	void *Release;
-	void *Invoke;
-} TypedEventHandlerVtbl_t;
-
-// The Vtable itself. It can be kept constant.
-static const TypedEventHandlerVtbl_t winrt_TypedEventHandlerVtbl = {
-	(void*)winrt_TypedEventHandler_QueryInterface,
-	(void*)winrt_TypedEventHandler_AddRef,
-	(void*)winrt_TypedEventHandler_Release,
-	(void*)winrt_TypedEventHandler_Invoke,
-};
-
-// A small helper function to get the Vtable.
-const TypedEventHandlerVtbl_t * winrt_getTypedEventHandlerVtbl(void) {
-	return &winrt_TypedEventHandlerVtbl;
-}
-*/
-import "C"
 
 const GUIDTypedEventHandler string = "9de1c534-6ae1-11e0-84e1-18a905bcc53f"
 const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a905bcc53f})"
@@ -56,6 +24,11 @@ type TypedEventHandler struct {
 	IID  ole.GUID
 }
 
+type TypedEventHandlerVtbl struct {
+	ole.IUnknownVtbl
+	Invoke uintptr
+}
+
 type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
 var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
@@ -64,9 +37,18 @@ var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
 }
 
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
-	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
-	// Override all properties: the malloc may contain garbage
-	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
+	size := unsafe.Sizeof(*(*TypedEventHandler)(nil))
+	instPtr := kernel32.Malloc(size)
+	inst := (*TypedEventHandler)(instPtr)
+	// Initialize all properties: the malloc may contain garbage
+	inst.RawVTable = (*interface{})(unsafe.Pointer(&TypedEventHandlerVtbl{
+		IUnknownVtbl: ole.IUnknownVtbl{
+			QueryInterface: syscall.NewCallback(inst.QueryInterface),
+			AddRef:         syscall.NewCallback(inst.AddRef),
+			Release:        syscall.NewCallback(inst.Release),
+		},
+		Invoke: syscall.NewCallback(inst.Invoke),
+	}))
 	inst.IID = *iid // copy contents
 	inst.Mutex = sync.Mutex{}
 	inst.refs = 0
@@ -95,6 +77,60 @@ func (r *TypedEventHandler) removeRef() uint64 {
 	}
 
 	return r.refs
+}
+
+func (instance *TypedEventHandler) QueryInterface(_, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
+	// Checkout these sources for more information about the QueryInterface method.
+	//   - https://docs.microsoft.com/en-us/cpp/atl/queryinterface
+	//   - https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-queryinterface(refiid_void)
+
+	if ppvObject == nil {
+		// If ppvObject (the address) is nullptr, then this method returns E_POINTER.
+		return ole.E_POINTER
+	}
+
+	// This function must adhere to the QueryInterface defined here:
+	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+	iid := (*ole.GUID)(iidPtr)
+	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+		*ppvObject = unsafe.Pointer(instance)
+	} else {
+		*ppvObject = nil
+		// Return E_NOINTERFACE if the interface is not supported
+		return ole.E_NOINTERFACE
+	}
+
+	// If the COM object implements the interface, then it returns
+	// a pointer to that interface after calling IUnknown::AddRef on it.
+	(*ole.IUnknown)(*ppvObject).AddRef()
+
+	// Return S_OK if the interface is supported
+	return ole.S_OK
+}
+
+func (instance *TypedEventHandler) Invoke(instancePtr unsafe.Pointer, senderPtr unsafe.Pointer, argsPtr unsafe.Pointer) uintptr {
+	// See the quote above.
+	sender := (unsafe.Pointer)(senderPtr)
+	args := (unsafe.Pointer)(argsPtr)
+	if callback, ok := callbacksTypedEventHandler.get(instancePtr); ok {
+		callback(instance, sender, args)
+	}
+	return ole.S_OK
+}
+
+func (instance *TypedEventHandler) AddRef() uint64 {
+	return instance.addRef()
+}
+
+func (instance *TypedEventHandler) Release() uint64 {
+	rem := instance.removeRef()
+	if rem == 0 {
+		// We're done.
+		instancePtr := unsafe.Pointer(instance)
+		callbacksTypedEventHandler.delete(instancePtr)
+		kernel32.Free(instancePtr)
+	}
+	return rem
 }
 
 type typedEventHandlerCallbacksMap struct {

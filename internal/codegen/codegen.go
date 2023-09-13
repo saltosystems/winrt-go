@@ -168,9 +168,6 @@ func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
 			return err
 		}
 		f.Data.Delegates = append(f.Data.Delegates, delegate)
-
-		exportsFile := g.addFile(typeDef, "_exports")
-		exportsFile.Data.DelegateExports = append(f.Data.DelegateExports, delegate)
 	default:
 		_ = level.Info(g.logger).Log("msg", "generating class", "class", typeDef.TypeNamespace+"."+typeDef.TypeName)
 
