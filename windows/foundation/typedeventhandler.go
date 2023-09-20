@@ -8,6 +8,7 @@ package foundation
 import (
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -31,9 +32,14 @@ type TypedEventHandlerVtbl struct {
 
 type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
-var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
+var callbacksTypedEventHandler = &typedEventHandlerCallbacks{
 	mu:        &sync.Mutex{},
 	callbacks: make(map[unsafe.Pointer]TypedEventHandlerCallback),
+}
+
+var releaseChannelsTypedEventHandler = &typedEventHandlerReleaseChannels{
+	mu:    &sync.Mutex{},
+	chans: make(map[unsafe.Pointer]chan struct{}),
 }
 
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
@@ -54,6 +60,9 @@ func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *Ty
 	inst.refs = 0
 
 	callbacksTypedEventHandler.add(unsafe.Pointer(inst), callback)
+
+	// See the docs in the releaseChannelsTypedEventHandler struct
+	releaseChannelsTypedEventHandler.acquire(unsafe.Pointer(inst))
 
 	inst.addRef()
 	return inst
@@ -128,24 +137,29 @@ func (instance *TypedEventHandler) Release() uint64 {
 		// We're done.
 		instancePtr := unsafe.Pointer(instance)
 		callbacksTypedEventHandler.delete(instancePtr)
+
+		// stop release channels used to avoid
+		// https://github.com/golang/go/issues/55015
+		releaseChannelsTypedEventHandler.release(instancePtr)
+
 		kernel32.Free(instancePtr)
 	}
 	return rem
 }
 
-type typedEventHandlerCallbacksMap struct {
+type typedEventHandlerCallbacks struct {
 	mu        *sync.Mutex
 	callbacks map[unsafe.Pointer]TypedEventHandlerCallback
 }
 
-func (m *typedEventHandlerCallbacksMap) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
+func (m *typedEventHandlerCallbacks) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.callbacks[p] = v
 }
 
-func (m *typedEventHandlerCallbacksMap) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
+func (m *typedEventHandlerCallbacks) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -153,9 +167,52 @@ func (m *typedEventHandlerCallbacksMap) get(p unsafe.Pointer) (TypedEventHandler
 	return v, ok
 }
 
-func (m *typedEventHandlerCallbacksMap) delete(p unsafe.Pointer) {
+func (m *typedEventHandlerCallbacks) delete(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.callbacks, p)
+}
+
+// typedEventHandlerReleaseChannels keeps a map with channels
+// used to keep a goroutine alive during the lifecycle of this object.
+// This is required to avoid causing a deadlock error.
+// See this: https://github.com/golang/go/issues/55015
+type typedEventHandlerReleaseChannels struct {
+	mu    *sync.Mutex
+	chans map[unsafe.Pointer]chan struct{}
+}
+
+func (m *typedEventHandlerReleaseChannels) acquire(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	c := make(chan struct{})
+	m.chans[p] = c
+
+	go func() {
+		// we need a timer to trick the go runtime into
+		// thinking there's still something going on here
+		// but we are only really interested in <-c
+		t := time.NewTimer(time.Minute)
+		for {
+			select {
+			case <-t.C:
+				t.Reset(time.Minute)
+			case <-c:
+				t.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (m *typedEventHandlerReleaseChannels) release(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if c, ok := m.chans[p]; ok {
+		close(c)
+		delete(m.chans, p)
+	}
 }

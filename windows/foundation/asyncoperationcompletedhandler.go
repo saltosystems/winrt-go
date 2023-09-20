@@ -8,6 +8,7 @@ package foundation
 import (
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -31,9 +32,14 @@ type AsyncOperationCompletedHandlerVtbl struct {
 
 type AsyncOperationCompletedHandlerCallback func(instance *AsyncOperationCompletedHandler, asyncInfo *IAsyncOperation, asyncStatus AsyncStatus)
 
-var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCallbacksMap{
+var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCallbacks{
 	mu:        &sync.Mutex{},
 	callbacks: make(map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback),
+}
+
+var releaseChannelsAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerReleaseChannels{
+	mu:    &sync.Mutex{},
+	chans: make(map[unsafe.Pointer]chan struct{}),
 }
 
 func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCompletedHandlerCallback) *AsyncOperationCompletedHandler {
@@ -54,6 +60,9 @@ func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCom
 	inst.refs = 0
 
 	callbacksAsyncOperationCompletedHandler.add(unsafe.Pointer(inst), callback)
+
+	// See the docs in the releaseChannelsAsyncOperationCompletedHandler struct
+	releaseChannelsAsyncOperationCompletedHandler.acquire(unsafe.Pointer(inst))
 
 	inst.addRef()
 	return inst
@@ -128,24 +137,29 @@ func (instance *AsyncOperationCompletedHandler) Release() uint64 {
 		// We're done.
 		instancePtr := unsafe.Pointer(instance)
 		callbacksAsyncOperationCompletedHandler.delete(instancePtr)
+
+		// stop release channels used to avoid
+		// https://github.com/golang/go/issues/55015
+		releaseChannelsAsyncOperationCompletedHandler.release(instancePtr)
+
 		kernel32.Free(instancePtr)
 	}
 	return rem
 }
 
-type asyncOperationCompletedHandlerCallbacksMap struct {
+type asyncOperationCompletedHandlerCallbacks struct {
 	mu        *sync.Mutex
 	callbacks map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) add(p unsafe.Pointer, v AsyncOperationCompletedHandlerCallback) {
+func (m *asyncOperationCompletedHandlerCallbacks) add(p unsafe.Pointer, v AsyncOperationCompletedHandlerCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.callbacks[p] = v
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) get(p unsafe.Pointer) (AsyncOperationCompletedHandlerCallback, bool) {
+func (m *asyncOperationCompletedHandlerCallbacks) get(p unsafe.Pointer) (AsyncOperationCompletedHandlerCallback, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -153,9 +167,52 @@ func (m *asyncOperationCompletedHandlerCallbacksMap) get(p unsafe.Pointer) (Asyn
 	return v, ok
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) delete(p unsafe.Pointer) {
+func (m *asyncOperationCompletedHandlerCallbacks) delete(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.callbacks, p)
+}
+
+// typedEventHandlerReleaseChannels keeps a map with channels
+// used to keep a goroutine alive during the lifecycle of this object.
+// This is required to avoid causing a deadlock error.
+// See this: https://github.com/golang/go/issues/55015
+type asyncOperationCompletedHandlerReleaseChannels struct {
+	mu    *sync.Mutex
+	chans map[unsafe.Pointer]chan struct{}
+}
+
+func (m *asyncOperationCompletedHandlerReleaseChannels) acquire(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	c := make(chan struct{})
+	m.chans[p] = c
+
+	go func() {
+		// we need a timer to trick the go runtime into
+		// thinking there's still something going on here
+		// but we are only really interested in <-c
+		t := time.NewTimer(time.Minute)
+		for {
+			select {
+			case <-t.C:
+				t.Reset(time.Minute)
+			case <-c:
+				t.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (m *asyncOperationCompletedHandlerReleaseChannels) release(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if c, ok := m.chans[p]; ok {
+		close(c)
+		delete(m.chans, p)
+	}
 }
