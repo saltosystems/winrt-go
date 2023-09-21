@@ -7,44 +7,13 @@ package foundation
 
 import (
 	"sync"
+	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
-
-/*
-#include <stdint.h>
-
-// Note: these functions have a different signature but because they are only
-// used as function pointers (and never called) and because they use C name
-// mangling, the signature doesn't really matter.
-void winrt_TypedEventHandler_Invoke(void);
-void winrt_TypedEventHandler_QueryInterface(void);
-uint64_t winrt_TypedEventHandler_AddRef(void);
-uint64_t winrt_TypedEventHandler_Release(void);
-
-// The Vtable structure for WinRT TypedEventHandler interfaces.
-typedef struct {
-	void *QueryInterface;
-	void *AddRef;
-	void *Release;
-	void *Invoke;
-} TypedEventHandlerVtbl_t;
-
-// The Vtable itself. It can be kept constant.
-static const TypedEventHandlerVtbl_t winrt_TypedEventHandlerVtbl = {
-	(void*)winrt_TypedEventHandler_QueryInterface,
-	(void*)winrt_TypedEventHandler_AddRef,
-	(void*)winrt_TypedEventHandler_Release,
-	(void*)winrt_TypedEventHandler_Invoke,
-};
-
-// A small helper function to get the Vtable.
-const TypedEventHandlerVtbl_t * winrt_getTypedEventHandlerVtbl(void) {
-	return &winrt_TypedEventHandlerVtbl;
-}
-*/
-import "C"
 
 const GUIDTypedEventHandler string = "9de1c534-6ae1-11e0-84e1-18a905bcc53f"
 const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a905bcc53f})"
@@ -56,22 +25,44 @@ type TypedEventHandler struct {
 	IID  ole.GUID
 }
 
+type TypedEventHandlerVtbl struct {
+	ole.IUnknownVtbl
+	Invoke uintptr
+}
+
 type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
 
-var callbacksTypedEventHandler = &typedEventHandlerCallbacksMap{
+var callbacksTypedEventHandler = &typedEventHandlerCallbacks{
 	mu:        &sync.Mutex{},
 	callbacks: make(map[unsafe.Pointer]TypedEventHandlerCallback),
 }
 
+var releaseChannelsTypedEventHandler = &typedEventHandlerReleaseChannels{
+	mu:    &sync.Mutex{},
+	chans: make(map[unsafe.Pointer]chan struct{}),
+}
+
 func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
-	inst := (*TypedEventHandler)(C.malloc(C.size_t(unsafe.Sizeof(TypedEventHandler{}))))
-	// Override all properties: the malloc may contain garbage
-	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getTypedEventHandlerVtbl()))
+	size := unsafe.Sizeof(*(*TypedEventHandler)(nil))
+	instPtr := kernel32.Malloc(size)
+	inst := (*TypedEventHandler)(instPtr)
+	// Initialize all properties: the malloc may contain garbage
+	inst.RawVTable = (*interface{})(unsafe.Pointer(&TypedEventHandlerVtbl{
+		IUnknownVtbl: ole.IUnknownVtbl{
+			QueryInterface: syscall.NewCallback(inst.QueryInterface),
+			AddRef:         syscall.NewCallback(inst.AddRef),
+			Release:        syscall.NewCallback(inst.Release),
+		},
+		Invoke: syscall.NewCallback(inst.Invoke),
+	}))
 	inst.IID = *iid // copy contents
 	inst.Mutex = sync.Mutex{}
 	inst.refs = 0
 
 	callbacksTypedEventHandler.add(unsafe.Pointer(inst), callback)
+
+	// See the docs in the releaseChannelsTypedEventHandler struct
+	releaseChannelsTypedEventHandler.acquire(unsafe.Pointer(inst))
 
 	inst.addRef()
 	return inst
@@ -97,19 +88,78 @@ func (r *TypedEventHandler) removeRef() uint64 {
 	return r.refs
 }
 
-type typedEventHandlerCallbacksMap struct {
+func (instance *TypedEventHandler) QueryInterface(_, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
+	// Checkout these sources for more information about the QueryInterface method.
+	//   - https://docs.microsoft.com/en-us/cpp/atl/queryinterface
+	//   - https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-queryinterface(refiid_void)
+
+	if ppvObject == nil {
+		// If ppvObject (the address) is nullptr, then this method returns E_POINTER.
+		return ole.E_POINTER
+	}
+
+	// This function must adhere to the QueryInterface defined here:
+	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+	iid := (*ole.GUID)(iidPtr)
+	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+		*ppvObject = unsafe.Pointer(instance)
+	} else {
+		*ppvObject = nil
+		// Return E_NOINTERFACE if the interface is not supported
+		return ole.E_NOINTERFACE
+	}
+
+	// If the COM object implements the interface, then it returns
+	// a pointer to that interface after calling IUnknown::AddRef on it.
+	(*ole.IUnknown)(*ppvObject).AddRef()
+
+	// Return S_OK if the interface is supported
+	return ole.S_OK
+}
+
+func (instance *TypedEventHandler) Invoke(instancePtr unsafe.Pointer, senderPtr unsafe.Pointer, argsPtr unsafe.Pointer) uintptr {
+	// See the quote above.
+	sender := (unsafe.Pointer)(senderPtr)
+	args := (unsafe.Pointer)(argsPtr)
+	if callback, ok := callbacksTypedEventHandler.get(instancePtr); ok {
+		callback(instance, sender, args)
+	}
+	return ole.S_OK
+}
+
+func (instance *TypedEventHandler) AddRef() uint64 {
+	return instance.addRef()
+}
+
+func (instance *TypedEventHandler) Release() uint64 {
+	rem := instance.removeRef()
+	if rem == 0 {
+		// We're done.
+		instancePtr := unsafe.Pointer(instance)
+		callbacksTypedEventHandler.delete(instancePtr)
+
+		// stop release channels used to avoid
+		// https://github.com/golang/go/issues/55015
+		releaseChannelsTypedEventHandler.release(instancePtr)
+
+		kernel32.Free(instancePtr)
+	}
+	return rem
+}
+
+type typedEventHandlerCallbacks struct {
 	mu        *sync.Mutex
 	callbacks map[unsafe.Pointer]TypedEventHandlerCallback
 }
 
-func (m *typedEventHandlerCallbacksMap) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
+func (m *typedEventHandlerCallbacks) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.callbacks[p] = v
 }
 
-func (m *typedEventHandlerCallbacksMap) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
+func (m *typedEventHandlerCallbacks) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -117,9 +167,52 @@ func (m *typedEventHandlerCallbacksMap) get(p unsafe.Pointer) (TypedEventHandler
 	return v, ok
 }
 
-func (m *typedEventHandlerCallbacksMap) delete(p unsafe.Pointer) {
+func (m *typedEventHandlerCallbacks) delete(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.callbacks, p)
+}
+
+// typedEventHandlerReleaseChannels keeps a map with channels
+// used to keep a goroutine alive during the lifecycle of this object.
+// This is required to avoid causing a deadlock error.
+// See this: https://github.com/golang/go/issues/55015
+type typedEventHandlerReleaseChannels struct {
+	mu    *sync.Mutex
+	chans map[unsafe.Pointer]chan struct{}
+}
+
+func (m *typedEventHandlerReleaseChannels) acquire(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	c := make(chan struct{})
+	m.chans[p] = c
+
+	go func() {
+		// we need a timer to trick the go runtime into
+		// thinking there's still something going on here
+		// but we are only really interested in <-c
+		t := time.NewTimer(time.Minute)
+		for {
+			select {
+			case <-t.C:
+				t.Reset(time.Minute)
+			case <-c:
+				t.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (m *typedEventHandlerReleaseChannels) release(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if c, ok := m.chans[p]; ok {
+		close(c)
+		delete(m.chans, p)
+	}
 }

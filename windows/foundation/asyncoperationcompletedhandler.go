@@ -7,44 +7,13 @@ package foundation
 
 import (
 	"sync"
+	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
-
-/*
-#include <stdint.h>
-
-// Note: these functions have a different signature but because they are only
-// used as function pointers (and never called) and because they use C name
-// mangling, the signature doesn't really matter.
-void winrt_AsyncOperationCompletedHandler_Invoke(void);
-void winrt_AsyncOperationCompletedHandler_QueryInterface(void);
-uint64_t winrt_AsyncOperationCompletedHandler_AddRef(void);
-uint64_t winrt_AsyncOperationCompletedHandler_Release(void);
-
-// The Vtable structure for WinRT AsyncOperationCompletedHandler interfaces.
-typedef struct {
-	void *QueryInterface;
-	void *AddRef;
-	void *Release;
-	void *Invoke;
-} AsyncOperationCompletedHandlerVtbl_t;
-
-// The Vtable itself. It can be kept constant.
-static const AsyncOperationCompletedHandlerVtbl_t winrt_AsyncOperationCompletedHandlerVtbl = {
-	(void*)winrt_AsyncOperationCompletedHandler_QueryInterface,
-	(void*)winrt_AsyncOperationCompletedHandler_AddRef,
-	(void*)winrt_AsyncOperationCompletedHandler_Release,
-	(void*)winrt_AsyncOperationCompletedHandler_Invoke,
-};
-
-// A small helper function to get the Vtable.
-const AsyncOperationCompletedHandlerVtbl_t * winrt_getAsyncOperationCompletedHandlerVtbl(void) {
-	return &winrt_AsyncOperationCompletedHandlerVtbl;
-}
-*/
-import "C"
 
 const GUIDAsyncOperationCompletedHandler string = "fcdcf02c-e5d8-4478-915a-4d90b74b83a5"
 const SignatureAsyncOperationCompletedHandler string = "delegate({fcdcf02c-e5d8-4478-915a-4d90b74b83a5})"
@@ -56,22 +25,44 @@ type AsyncOperationCompletedHandler struct {
 	IID  ole.GUID
 }
 
+type AsyncOperationCompletedHandlerVtbl struct {
+	ole.IUnknownVtbl
+	Invoke uintptr
+}
+
 type AsyncOperationCompletedHandlerCallback func(instance *AsyncOperationCompletedHandler, asyncInfo *IAsyncOperation, asyncStatus AsyncStatus)
 
-var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCallbacksMap{
+var callbacksAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerCallbacks{
 	mu:        &sync.Mutex{},
 	callbacks: make(map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback),
 }
 
+var releaseChannelsAsyncOperationCompletedHandler = &asyncOperationCompletedHandlerReleaseChannels{
+	mu:    &sync.Mutex{},
+	chans: make(map[unsafe.Pointer]chan struct{}),
+}
+
 func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCompletedHandlerCallback) *AsyncOperationCompletedHandler {
-	inst := (*AsyncOperationCompletedHandler)(C.malloc(C.size_t(unsafe.Sizeof(AsyncOperationCompletedHandler{}))))
-	// Override all properties: the malloc may contain garbage
-	inst.RawVTable = (*interface{})((unsafe.Pointer)(C.winrt_getAsyncOperationCompletedHandlerVtbl()))
+	size := unsafe.Sizeof(*(*AsyncOperationCompletedHandler)(nil))
+	instPtr := kernel32.Malloc(size)
+	inst := (*AsyncOperationCompletedHandler)(instPtr)
+	// Initialize all properties: the malloc may contain garbage
+	inst.RawVTable = (*interface{})(unsafe.Pointer(&AsyncOperationCompletedHandlerVtbl{
+		IUnknownVtbl: ole.IUnknownVtbl{
+			QueryInterface: syscall.NewCallback(inst.QueryInterface),
+			AddRef:         syscall.NewCallback(inst.AddRef),
+			Release:        syscall.NewCallback(inst.Release),
+		},
+		Invoke: syscall.NewCallback(inst.Invoke),
+	}))
 	inst.IID = *iid // copy contents
 	inst.Mutex = sync.Mutex{}
 	inst.refs = 0
 
 	callbacksAsyncOperationCompletedHandler.add(unsafe.Pointer(inst), callback)
+
+	// See the docs in the releaseChannelsAsyncOperationCompletedHandler struct
+	releaseChannelsAsyncOperationCompletedHandler.acquire(unsafe.Pointer(inst))
 
 	inst.addRef()
 	return inst
@@ -97,19 +88,78 @@ func (r *AsyncOperationCompletedHandler) removeRef() uint64 {
 	return r.refs
 }
 
-type asyncOperationCompletedHandlerCallbacksMap struct {
+func (instance *AsyncOperationCompletedHandler) QueryInterface(_, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
+	// Checkout these sources for more information about the QueryInterface method.
+	//   - https://docs.microsoft.com/en-us/cpp/atl/queryinterface
+	//   - https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-queryinterface(refiid_void)
+
+	if ppvObject == nil {
+		// If ppvObject (the address) is nullptr, then this method returns E_POINTER.
+		return ole.E_POINTER
+	}
+
+	// This function must adhere to the QueryInterface defined here:
+	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
+	iid := (*ole.GUID)(iidPtr)
+	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+		*ppvObject = unsafe.Pointer(instance)
+	} else {
+		*ppvObject = nil
+		// Return E_NOINTERFACE if the interface is not supported
+		return ole.E_NOINTERFACE
+	}
+
+	// If the COM object implements the interface, then it returns
+	// a pointer to that interface after calling IUnknown::AddRef on it.
+	(*ole.IUnknown)(*ppvObject).AddRef()
+
+	// Return S_OK if the interface is supported
+	return ole.S_OK
+}
+
+func (instance *AsyncOperationCompletedHandler) Invoke(instancePtr unsafe.Pointer, asyncInfoPtr unsafe.Pointer, asyncStatusRaw int32) uintptr {
+	// See the quote above.
+	asyncInfo := (*IAsyncOperation)(asyncInfoPtr)
+	asyncStatus := (AsyncStatus)(asyncStatusRaw)
+	if callback, ok := callbacksAsyncOperationCompletedHandler.get(instancePtr); ok {
+		callback(instance, asyncInfo, asyncStatus)
+	}
+	return ole.S_OK
+}
+
+func (instance *AsyncOperationCompletedHandler) AddRef() uint64 {
+	return instance.addRef()
+}
+
+func (instance *AsyncOperationCompletedHandler) Release() uint64 {
+	rem := instance.removeRef()
+	if rem == 0 {
+		// We're done.
+		instancePtr := unsafe.Pointer(instance)
+		callbacksAsyncOperationCompletedHandler.delete(instancePtr)
+
+		// stop release channels used to avoid
+		// https://github.com/golang/go/issues/55015
+		releaseChannelsAsyncOperationCompletedHandler.release(instancePtr)
+
+		kernel32.Free(instancePtr)
+	}
+	return rem
+}
+
+type asyncOperationCompletedHandlerCallbacks struct {
 	mu        *sync.Mutex
 	callbacks map[unsafe.Pointer]AsyncOperationCompletedHandlerCallback
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) add(p unsafe.Pointer, v AsyncOperationCompletedHandlerCallback) {
+func (m *asyncOperationCompletedHandlerCallbacks) add(p unsafe.Pointer, v AsyncOperationCompletedHandlerCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.callbacks[p] = v
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) get(p unsafe.Pointer) (AsyncOperationCompletedHandlerCallback, bool) {
+func (m *asyncOperationCompletedHandlerCallbacks) get(p unsafe.Pointer) (AsyncOperationCompletedHandlerCallback, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -117,9 +167,52 @@ func (m *asyncOperationCompletedHandlerCallbacksMap) get(p unsafe.Pointer) (Asyn
 	return v, ok
 }
 
-func (m *asyncOperationCompletedHandlerCallbacksMap) delete(p unsafe.Pointer) {
+func (m *asyncOperationCompletedHandlerCallbacks) delete(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.callbacks, p)
+}
+
+// typedEventHandlerReleaseChannels keeps a map with channels
+// used to keep a goroutine alive during the lifecycle of this object.
+// This is required to avoid causing a deadlock error.
+// See this: https://github.com/golang/go/issues/55015
+type asyncOperationCompletedHandlerReleaseChannels struct {
+	mu    *sync.Mutex
+	chans map[unsafe.Pointer]chan struct{}
+}
+
+func (m *asyncOperationCompletedHandlerReleaseChannels) acquire(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	c := make(chan struct{})
+	m.chans[p] = c
+
+	go func() {
+		// we need a timer to trick the go runtime into
+		// thinking there's still something going on here
+		// but we are only really interested in <-c
+		t := time.NewTimer(time.Minute)
+		for {
+			select {
+			case <-t.C:
+				t.Reset(time.Minute)
+			case <-c:
+				t.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (m *asyncOperationCompletedHandlerReleaseChannels) release(p unsafe.Pointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if c, ok := m.chans[p]; ok {
+		close(c)
+		delete(m.chans, p)
+	}
 }
