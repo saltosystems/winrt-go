@@ -67,6 +67,7 @@ type genClass struct {
 	ImplInterfaces      []*genInterface
 	ExclusiveInterfaces []*genInterface
 	HasEmptyConstructor bool
+	IsAbstract          bool
 }
 
 func (g *genClass) GetRequiredImports() []*genImport {

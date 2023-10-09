@@ -368,6 +368,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 		ImplInterfaces:      implInterfaces,
 		ExclusiveInterfaces: exclusiveGenInterfaces,
 		HasEmptyConstructor: hasEmptyConstructor,
+		IsAbstract:          typeDef.Flags.Abstract(),
 	}, nil
 }
 
@@ -1155,6 +1156,12 @@ func (g *generator) Signature(typeDef *winmd.TypeDef) (string, error) {
 
 		return fmt.Sprintf(`delegate({%s})`, guid), nil
 	case typeDef.IsRuntimeClass():
+		// Static only classes carry the abstract flag.
+		// These cannot be instantiated so no signature needed.
+		if typeDef.Flags.Abstract() {
+			return "", nil
+		}
+
 		// runtime_class_signature => "rc(" runtime_class_name ";" default_interface ")"
 
 		// Runtime classes must specify the DefaultAttribute on exactly one of their InterfaceImpl rows.
