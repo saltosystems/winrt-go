@@ -1,3 +1,4 @@
+{{if not .IsAbstract}}
 const Signature{{.Name}} string = "{{.Signature}}"
 
 type {{.Name}} struct {
@@ -12,6 +13,7 @@ func New{{.Name}}() (*{{.Name}}, error) {
     }
     return (*{{.Name}})(unsafe.Pointer(inspectable)), nil
 }
+{{end}}
 {{end}}
 
 {{$owner := .Name}}
