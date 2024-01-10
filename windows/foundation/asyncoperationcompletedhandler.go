@@ -7,11 +7,11 @@ package foundation
 
 import (
 	"sync"
-	"syscall"
 	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/internal/delegate"
 	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
 
@@ -46,14 +46,17 @@ func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCom
 	size := unsafe.Sizeof(*(*AsyncOperationCompletedHandler)(nil))
 	instPtr := kernel32.Malloc(size)
 	inst := (*AsyncOperationCompletedHandler)(instPtr)
+
+	callbacks := delegate.RegisterCallbacks(instPtr, inst)
+
 	// Initialize all properties: the malloc may contain garbage
 	inst.RawVTable = (*interface{})(unsafe.Pointer(&AsyncOperationCompletedHandlerVtbl{
 		IUnknownVtbl: ole.IUnknownVtbl{
-			QueryInterface: syscall.NewCallback(inst.QueryInterface),
-			AddRef:         syscall.NewCallback(inst.AddRef),
-			Release:        syscall.NewCallback(inst.Release),
+			QueryInterface: callbacks.QueryInterface,
+			AddRef:         callbacks.AddRef,
+			Release:        callbacks.Release,
 		},
-		Invoke: syscall.NewCallback(inst.Invoke),
+		Invoke: callbacks.Invoke,
 	}))
 	inst.IID = *iid // copy contents
 	inst.Mutex = sync.Mutex{}
@@ -66,6 +69,10 @@ func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCom
 
 	inst.addRef()
 	return inst
+}
+
+func (r *AsyncOperationCompletedHandler) GetIID() *ole.GUID {
+	return &r.IID
 }
 
 // addRef increments the reference counter by one
@@ -88,36 +95,10 @@ func (r *AsyncOperationCompletedHandler) removeRef() uint64 {
 	return r.refs
 }
 
-func (instance *AsyncOperationCompletedHandler) QueryInterface(_, iidPtr unsafe.Pointer, ppvObject *unsafe.Pointer) uintptr {
-	// Checkout these sources for more information about the QueryInterface method.
-	//   - https://docs.microsoft.com/en-us/cpp/atl/queryinterface
-	//   - https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-queryinterface(refiid_void)
+func (instance *AsyncOperationCompletedHandler) Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8 unsafe.Pointer) uintptr {
+	asyncInfoPtr := rawArgs0
+	asyncStatusRaw := (int32)(uintptr(rawArgs1))
 
-	if ppvObject == nil {
-		// If ppvObject (the address) is nullptr, then this method returns E_POINTER.
-		return ole.E_POINTER
-	}
-
-	// This function must adhere to the QueryInterface defined here:
-	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
-	iid := (*ole.GUID)(iidPtr)
-	if ole.IsEqualGUID(iid, &instance.IID) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
-		*ppvObject = unsafe.Pointer(instance)
-	} else {
-		*ppvObject = nil
-		// Return E_NOINTERFACE if the interface is not supported
-		return ole.E_NOINTERFACE
-	}
-
-	// If the COM object implements the interface, then it returns
-	// a pointer to that interface after calling IUnknown::AddRef on it.
-	(*ole.IUnknown)(*ppvObject).AddRef()
-
-	// Return S_OK if the interface is supported
-	return ole.S_OK
-}
-
-func (instance *AsyncOperationCompletedHandler) Invoke(instancePtr unsafe.Pointer, asyncInfoPtr unsafe.Pointer, asyncStatusRaw int32) uintptr {
 	// See the quote above.
 	asyncInfo := (*IAsyncOperation)(asyncInfoPtr)
 	asyncStatus := (AsyncStatus)(asyncStatusRaw)
