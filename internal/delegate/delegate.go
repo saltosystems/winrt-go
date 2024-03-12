@@ -113,17 +113,19 @@ func invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawAr
 	return instance.Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8)
 }
 
-func addRef(instancePtr unsafe.Pointer) uint64 {
+func addRef(instancePtr unsafe.Pointer) uintptr {
 	instance, ok := getInstance(instancePtr)
 	if !ok {
 		// instance not found
 		return ole.E_FAIL
 	}
 
-	return instance.AddRef()
+	// this may be cast to a 32 bit value,
+	// but the result from AddRef should always fit
+	return uintptr(instance.AddRef())
 }
 
-func release(instancePtr unsafe.Pointer) uint64 {
+func release(instancePtr unsafe.Pointer) uintptr {
 	instance, ok := getInstance(instancePtr)
 	if !ok {
 		// instance not found
@@ -135,5 +137,8 @@ func release(instancePtr unsafe.Pointer) uint64 {
 		// remove this delegate
 		removeInstance(instancePtr)
 	}
-	return rem
+
+	// this may be cast to a 32 bit value,
+	// but the result from AddRef should always fit
+	return uintptr(rem)
 }
