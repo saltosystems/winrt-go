@@ -6,15 +6,24 @@
 package advertisement
 
 import (
+	"syscall"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth"
 )
 
 const SignatureBluetoothLEAdvertisementWatcherStoppedEventArgs string = "rc(Windows.Devices.Bluetooth.Advertisement.BluetoothLEAdvertisementWatcherStoppedEventArgs;{dd40f84d-e7b9-43e3-9c04-0685d085fd8c})"
 
 type BluetoothLEAdvertisementWatcherStoppedEventArgs struct {
 	ole.IUnknown
+}
+
+func (impl *BluetoothLEAdvertisementWatcherStoppedEventArgs) GetError() (bluetooth.BluetoothError, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcherStoppedEventArgs))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementWatcherStoppedEventArgs)(unsafe.Pointer(itf))
+	return v.GetError()
 }
 
 const GUIDiBluetoothLEAdvertisementWatcherStoppedEventArgs string = "dd40f84d-e7b9-43e3-9c04-0685d085fd8c"
@@ -32,4 +41,19 @@ type iBluetoothLEAdvertisementWatcherStoppedEventArgsVtbl struct {
 
 func (v *iBluetoothLEAdvertisementWatcherStoppedEventArgs) VTable() *iBluetoothLEAdvertisementWatcherStoppedEventArgsVtbl {
 	return (*iBluetoothLEAdvertisementWatcherStoppedEventArgsVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iBluetoothLEAdvertisementWatcherStoppedEventArgs) GetError() (bluetooth.BluetoothError, error) {
+	var out bluetooth.BluetoothError
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetError,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out bluetooth.BluetoothError
+	)
+
+	if hr != 0 {
+		return bluetooth.BluetoothErrorSuccess, ole.NewError(hr)
+	}
+
+	return out, nil
 }
