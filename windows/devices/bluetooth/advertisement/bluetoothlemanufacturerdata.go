@@ -143,14 +143,14 @@ type iBluetoothLEManufacturerDataFactory struct {
 type iBluetoothLEManufacturerDataFactoryVtbl struct {
 	ole.IInspectableVtbl
 
-	Create uintptr
+	BluetoothLEManufacturerDataCreate uintptr
 }
 
 func (v *iBluetoothLEManufacturerDataFactory) VTable() *iBluetoothLEManufacturerDataFactoryVtbl {
 	return (*iBluetoothLEManufacturerDataFactoryVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func Create(companyId uint16, data *streams.IBuffer) (*BluetoothLEManufacturerData, error) {
+func BluetoothLEManufacturerDataCreate(companyId uint16, data *streams.IBuffer) (*BluetoothLEManufacturerData, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Devices.Bluetooth.Advertisement.BluetoothLEManufacturerData", ole.NewGUID(GUIDiBluetoothLEManufacturerDataFactory))
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func Create(companyId uint16, data *streams.IBuffer) (*BluetoothLEManufacturerDa
 
 	var out *BluetoothLEManufacturerData
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().Create,
+		v.VTable().BluetoothLEManufacturerDataCreate,
 		0,                             // this is a static func, so there's no this
 		uintptr(companyId),            // in uint16
 		uintptr(unsafe.Pointer(data)), // in streams.IBuffer

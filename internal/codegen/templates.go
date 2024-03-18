@@ -228,17 +228,25 @@ func funcs() template.FuncMap {
 
 // funcName is used to generate the name of a function.
 func funcName(m genFunc) string {
-	switch {
-	case strings.HasPrefix(m.Name, "get_"):
-		return strings.Replace(m.Name, "get_", "Get", 1)
-	case strings.HasPrefix(m.Name, "put_"):
-		return strings.Replace(m.Name, "put_", "Set", 1)
-	case strings.HasPrefix(m.Name, "add_"):
-		return strings.Replace(m.Name, "add_", "Add", 1)
-	case strings.HasPrefix(m.Name, "remove_"):
-		return strings.Replace(m.Name, "remove_", "Remove", 1)
+	// There are some special prefixes applied to methods that we need to replace
+	replacer := strings.NewReplacer(
+		"get_", "Get",
+		"put_", "Set",
+		"add_", "Add",
+		"remove_", "Remove",
+	)
+	name := replacer.Replace(m.Name)
+
+	// Add a prefix to static methods to include the owner class of the method.
+	// This is necessary to avoid conflicts with method names within the same package.
+	// Static methods are those that are exclusive to a class and require activation.
+	prefix := ""
+	if m.ExclusiveTo != "" && m.RequiresActivation {
+		nsAndName := strings.Split(m.ExclusiveTo, ".")
+		prefix = typeNameToGoName(nsAndName[len(nsAndName)-1], true)
 	}
-	return m.Name
+
+	return prefix + name
 }
 
 func typeToFolder(ns, name string) string {
