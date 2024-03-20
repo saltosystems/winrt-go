@@ -194,14 +194,14 @@ type iGattSessionStatics struct {
 type iGattSessionStaticsVtbl struct {
 	ole.IInspectableVtbl
 
-	FromDeviceIdAsync uintptr
+	GattSessionFromDeviceIdAsync uintptr
 }
 
 func (v *iGattSessionStatics) VTable() *iGattSessionStaticsVtbl {
 	return (*iGattSessionStaticsVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func FromDeviceIdAsync(deviceId *bluetooth.BluetoothDeviceId) (*foundation.IAsyncOperation, error) {
+func GattSessionFromDeviceIdAsync(deviceId *bluetooth.BluetoothDeviceId) (*foundation.IAsyncOperation, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Devices.Bluetooth.GenericAttributeProfile.GattSession", ole.NewGUID(GUIDiGattSessionStatics))
 	if err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func FromDeviceIdAsync(deviceId *bluetooth.BluetoothDeviceId) (*foundation.IAsyn
 
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().FromDeviceIdAsync,
+		v.VTable().GattSessionFromDeviceIdAsync,
 		0,                                 // this is a static func, so there's no this
 		uintptr(unsafe.Pointer(deviceId)), // in bluetooth.BluetoothDeviceId
 		uintptr(unsafe.Pointer(&out)),     // out foundation.IAsyncOperation

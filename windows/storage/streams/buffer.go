@@ -49,14 +49,14 @@ type iBufferFactory struct {
 type iBufferFactoryVtbl struct {
 	ole.IInspectableVtbl
 
-	Create uintptr
+	BufferCreate uintptr
 }
 
 func (v *iBufferFactory) VTable() *iBufferFactoryVtbl {
 	return (*iBufferFactoryVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func Create(capacity uint32) (*Buffer, error) {
+func BufferCreate(capacity uint32) (*Buffer, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Storage.Streams.Buffer", ole.NewGUID(GUIDiBufferFactory))
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func Create(capacity uint32) (*Buffer, error) {
 
 	var out *Buffer
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().Create,
+		v.VTable().BufferCreate,
 		0,                             // this is a static func, so there's no this
 		uintptr(capacity),             // in uint32
 		uintptr(unsafe.Pointer(&out)), // out Buffer

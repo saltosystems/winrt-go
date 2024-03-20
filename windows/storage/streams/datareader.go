@@ -35,14 +35,14 @@ type iDataReaderStatics struct {
 type iDataReaderStaticsVtbl struct {
 	ole.IInspectableVtbl
 
-	FromBuffer uintptr
+	DataReaderFromBuffer uintptr
 }
 
 func (v *iDataReaderStatics) VTable() *iDataReaderStaticsVtbl {
 	return (*iDataReaderStaticsVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func FromBuffer(buffer *IBuffer) (*DataReader, error) {
+func DataReaderFromBuffer(buffer *IBuffer) (*DataReader, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Storage.Streams.DataReader", ole.NewGUID(GUIDiDataReaderStatics))
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func FromBuffer(buffer *IBuffer) (*DataReader, error) {
 
 	var out *DataReader
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().FromBuffer,
+		v.VTable().DataReaderFromBuffer,
 		0,                               // this is a static func, so there's no this
 		uintptr(unsafe.Pointer(buffer)), // in IBuffer
 		uintptr(unsafe.Pointer(&out)),   // out DataReader

@@ -272,20 +272,20 @@ type iBluetoothLEDeviceStatics2 struct {
 type iBluetoothLEDeviceStatics2Vtbl struct {
 	ole.IInspectableVtbl
 
-	GetDeviceSelectorFromPairingState                             uintptr
-	GetDeviceSelectorFromConnectionStatus                         uintptr
-	GetDeviceSelectorFromDeviceName                               uintptr
-	GetDeviceSelectorFromBluetoothAddress                         uintptr
-	GetDeviceSelectorFromBluetoothAddressWithBluetoothAddressType uintptr
-	GetDeviceSelectorFromAppearance                               uintptr
-	FromBluetoothAddressWithBluetoothAddressTypeAsync             uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromPairingState                             uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromConnectionStatus                         uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromDeviceName                               uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromBluetoothAddress                         uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromBluetoothAddressWithBluetoothAddressType uintptr
+	BluetoothLEDeviceGetDeviceSelectorFromAppearance                               uintptr
+	BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync             uintptr
 }
 
 func (v *iBluetoothLEDeviceStatics2) VTable() *iBluetoothLEDeviceStatics2Vtbl {
 	return (*iBluetoothLEDeviceStatics2Vtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func FromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoothAddress uint64, bluetoothAddressType BluetoothAddressType) (*foundation.IAsyncOperation, error) {
+func BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoothAddress uint64, bluetoothAddressType BluetoothAddressType) (*foundation.IAsyncOperation, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Devices.Bluetooth.BluetoothLEDevice", ole.NewGUID(GUIDiBluetoothLEDeviceStatics2))
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func FromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoothAddress uint64, 
 
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().FromBluetoothAddressWithBluetoothAddressTypeAsync,
+		v.VTable().BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync,
 		0,                             // this is a static func, so there's no this
 		uintptr(bluetoothAddress),     // in uint64
 		uintptr(bluetoothAddressType), // in BluetoothAddressType
@@ -318,16 +318,16 @@ type iBluetoothLEDeviceStatics struct {
 type iBluetoothLEDeviceStaticsVtbl struct {
 	ole.IInspectableVtbl
 
-	FromIdAsync               uintptr
-	FromBluetoothAddressAsync uintptr
-	GetDeviceSelector         uintptr
+	BluetoothLEDeviceFromIdAsync               uintptr
+	BluetoothLEDeviceFromBluetoothAddressAsync uintptr
+	BluetoothLEDeviceGetDeviceSelector         uintptr
 }
 
 func (v *iBluetoothLEDeviceStatics) VTable() *iBluetoothLEDeviceStaticsVtbl {
 	return (*iBluetoothLEDeviceStaticsVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func FromBluetoothAddressAsync(bluetoothAddress uint64) (*foundation.IAsyncOperation, error) {
+func BluetoothLEDeviceFromBluetoothAddressAsync(bluetoothAddress uint64) (*foundation.IAsyncOperation, error) {
 	inspectable, err := ole.RoGetActivationFactory("Windows.Devices.Bluetooth.BluetoothLEDevice", ole.NewGUID(GUIDiBluetoothLEDeviceStatics))
 	if err != nil {
 		return nil, err
@@ -336,7 +336,7 @@ func FromBluetoothAddressAsync(bluetoothAddress uint64) (*foundation.IAsyncOpera
 
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
-		v.VTable().FromBluetoothAddressAsync,
+		v.VTable().BluetoothLEDeviceFromBluetoothAddressAsync,
 		0,                             // this is a static func, so there's no this
 		uintptr(bluetoothAddress),     // in uint64
 		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
