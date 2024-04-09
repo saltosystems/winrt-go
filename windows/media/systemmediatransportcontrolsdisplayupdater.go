@@ -10,8 +10,6 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/windows/foundation"
-	"github.com/saltosystems/winrt-go/windows/storage"
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
@@ -82,13 +80,6 @@ func (impl *SystemMediaTransportControlsDisplayUpdater) GetImageProperties() (*I
 	defer itf.Release()
 	v := (*iSystemMediaTransportControlsDisplayUpdater)(unsafe.Pointer(itf))
 	return v.GetImageProperties()
-}
-
-func (impl *SystemMediaTransportControlsDisplayUpdater) CopyFromFileAsync(mType MediaPlaybackType, source *storage.StorageFile) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiSystemMediaTransportControlsDisplayUpdater))
-	defer itf.Release()
-	v := (*iSystemMediaTransportControlsDisplayUpdater)(unsafe.Pointer(itf))
-	return v.CopyFromFileAsync(mType, source)
 }
 
 func (impl *SystemMediaTransportControlsDisplayUpdater) ClearAll() error {
@@ -262,23 +253,6 @@ func (v *iSystemMediaTransportControlsDisplayUpdater) GetImageProperties() (*Ima
 		v.VTable().GetImageProperties,
 		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(unsafe.Pointer(&out)), // out ImageDisplayProperties
-	)
-
-	if hr != 0 {
-		return nil, ole.NewError(hr)
-	}
-
-	return out, nil
-}
-
-func (v *iSystemMediaTransportControlsDisplayUpdater) CopyFromFileAsync(mType MediaPlaybackType, source *storage.StorageFile) (*foundation.IAsyncOperation, error) {
-	var out *foundation.IAsyncOperation
-	hr, _, _ := syscall.SyscallN(
-		v.VTable().CopyFromFileAsync,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(mType),                  // in MediaPlaybackType
-		uintptr(unsafe.Pointer(source)), // in storage.StorageFile
-		uintptr(unsafe.Pointer(&out)),   // out foundation.IAsyncOperation
 	)
 
 	if hr != 0 {
