@@ -26,6 +26,7 @@ func NewGenerateCommand(logger log.Logger) *subcommands.Command {
 	cfg := codegen.NewConfig()
 	fs := flag.NewFlagSet("winrt-go-gen", flag.ExitOnError)
 	_ = fs.String("config", "", "config file (optional)")
+	fs.BoolVar(&cfg.ValidateOnly, "validate", cfg.ValidateOnly, "validate the existing code instead of generating it")
 	fs.StringVar(&cfg.Class, "class", cfg.Class, "The class to generate. This should include the namespace and the class name, e.g. 'System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken'.")
 	fs.Func("method-filter", methodFilterUsage, func(m string) error {
 		cfg.AddMethodFilter(m)

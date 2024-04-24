@@ -1,11 +1,14 @@
 package codegen
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Config is the configuration for the code generation.
 type Config struct {
 	Debug         bool
 	Class         string
+	ValidateOnly  bool
 	methodFilters []string
 }
 
