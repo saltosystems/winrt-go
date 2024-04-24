@@ -23,6 +23,7 @@ const (
 
 type generator struct {
 	class        string
+	validateOnly bool
 	methodFilter *MethodFilter
 
 	logger log.Logger
@@ -45,6 +46,7 @@ func Generate(cfg *Config, logger log.Logger) error {
 
 	g := &generator{
 		class:        cfg.Class,
+		validateOnly: cfg.ValidateOnly,
 		methodFilter: cfg.MethodFilter(),
 		logger:       logger,
 		mdStore:      mdStore,
@@ -71,63 +73,89 @@ func (g *generator) generate(typeDef *winmd.TypeDef) error {
 		return fmt.Errorf("%s.%s is not a WinRT class", typeDef.TypeNamespace, typeDef.TypeName)
 	}
 
-	// get templates
-	tmpl, err := getTemplates()
-	if err != nil {
-		return err
-	}
-
 	// get data & execute templates
 	if err := g.loadCodeGenData(typeDef); err != nil {
 		return err
 	}
 
 	for _, fData := range g.genDataFiles {
-		fData.Data.ComputeImports(typeDef)
-
-		var buf bytes.Buffer
-		if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", fData.Data); err != nil {
-			return err
-		}
-
-		// create file & write contents
-		filename := fData.Filename
-		parts := strings.Split(fData.Filename, "/")
-		folder := strings.Join(parts[:len(parts)-1], "/")
-		err = os.MkdirAll(folder, os.ModePerm)
-		if err != nil {
-			return err
-		}
-		file, err := os.Create(filepath.Clean(filename))
-		if err != nil {
-			return err
-		}
-		defer func() { _ = file.Close() }()
-
-		// use go imports to cleanup imports
-		goimported, err := imports.Process(filename, buf.Bytes(), nil)
-		if err != nil {
-			// write unimported  source code to file as a debugging mechanism
-			_, _ = file.Write(buf.Bytes())
-			return err
-		}
-
-		// format the output source code
-		formatted, err := format.Source(goimported)
-		if err != nil {
-			// write unformatted source code to file as a debugging mechanism
-			_, _ = file.Write(goimported)
-			return err
-		}
-
-		// and write it to file
-		_, err = file.Write(formatted)
-		if err != nil {
+		if err := g.generateDataFile(fData, typeDef); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	return err
+func (g *generator) generateDataFile(fData *genDataFile, typeDef *winmd.TypeDef) error {
+	// get templates
+	tmpl, err := getTemplates()
+	if err != nil {
+		return err
+	}
+
+	fData.Data.ComputeImports(typeDef)
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", fData.Data); err != nil {
+		return err
+	}
+
+	// use go imports to cleanup imports
+	goimported, err := imports.Process(fData.Filename, buf.Bytes(), nil)
+	if err != nil {
+		return err
+	}
+
+	// format the output source code
+	formatted, err := format.Source(goimported)
+	if err != nil {
+		return err
+	}
+
+	if g.validateOnly {
+		// validate existing file content
+		return g.validateFileContent(fData, formatted)
+	}
+
+	// create file & write contents
+	return g.writeFile(fData, formatted)
+}
+
+func (g *generator) validateFileContent(fData *genDataFile, genContent []byte) error {
+	// validate existing content
+	existingContent, err := os.ReadFile(fData.Filename)
+	if err != nil {
+		return err
+	}
+
+	// compare existing content to generated
+	_ = level.Debug(g.logger).Log("msg", "validating generated code", "filename", fData.Filename)
+	if string(existingContent) != string(genContent) {
+		return fmt.Errorf("file %s does not contain expected content", fData.Filename)
+	}
+	return nil
+}
+
+func (g *generator) writeFile(fData *genDataFile, content []byte) error {
+	parts := strings.Split(fData.Filename, "/")
+	folder := strings.Join(parts[:len(parts)-1], "/")
+	err := os.MkdirAll(folder, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(filepath.Clean(fData.Filename))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+
+	// and write it to file
+	_, err = file.Write(content)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (g *generator) loadCodeGenData(typeDef *winmd.TypeDef) error {
