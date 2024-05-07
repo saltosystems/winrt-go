@@ -147,6 +147,7 @@ type genParamType struct {
 	name      string
 
 	IsPointer          bool
+	IsGeneric          bool
 	IsArray            bool
 	IsPrimitive        bool
 	IsEnum             bool
