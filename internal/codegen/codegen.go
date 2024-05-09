@@ -978,10 +978,12 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 			defaultValue:       g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_VAR:
-		// A class variable type modifier
+		// Generic types are not fully supported yet,
+		// so we will just pass the raw unsafe.Pointer up to the user.
 		return &genParamType{
 			namespace:    "unsafe",
 			name:         "Pointer",
+			IsGeneric:    true,
 			IsPointer:    false,
 			IsPrimitive:  false,
 			IsArray:      false,
