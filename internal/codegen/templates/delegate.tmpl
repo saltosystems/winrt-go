@@ -5,7 +5,7 @@ const Signature{{.Name}} string = "{{.Signature}}"
 type {{.Name}} struct {
 	ole.IUnknown
 	sync.Mutex
-	refs uint64
+	refs uintptr
 	IID  ole.GUID
 }
 
@@ -70,7 +70,7 @@ func (r *{{.Name}}) GetIID() *ole.GUID {
 }
 
 // addRef increments the reference counter by one
-func (r *{{.Name}}) addRef() uint64 {
+func (r *{{.Name}}) addRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 	r.refs++
@@ -78,7 +78,7 @@ func (r *{{.Name}}) addRef() uint64 {
 }
 
 // removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
-func (r *{{.Name}}) removeRef() uint64 {
+func (r *{{.Name}}) removeRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 
@@ -112,11 +112,11 @@ func (instance *{{.Name}}) Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, raw
 	return ole.S_OK
 }
 
-func (instance *{{.Name}}) AddRef() uint64 {
+func (instance *{{.Name}}) AddRef() uintptr {
 	return instance.addRef()
 }
 
-func (instance *{{.Name}}) Release() uint64 {
+func (instance *{{.Name}}) Release() uintptr {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.

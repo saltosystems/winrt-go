@@ -21,7 +21,7 @@ const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a
 type TypedEventHandler struct {
 	ole.IUnknown
 	sync.Mutex
-	refs uint64
+	refs uintptr
 	IID  ole.GUID
 }
 
@@ -84,7 +84,7 @@ func (r *TypedEventHandler) GetIID() *ole.GUID {
 }
 
 // addRef increments the reference counter by one
-func (r *TypedEventHandler) addRef() uint64 {
+func (r *TypedEventHandler) addRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 	r.refs++
@@ -92,7 +92,7 @@ func (r *TypedEventHandler) addRef() uint64 {
 }
 
 // removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
-func (r *TypedEventHandler) removeRef() uint64 {
+func (r *TypedEventHandler) removeRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 
@@ -116,11 +116,11 @@ func (instance *TypedEventHandler) Invoke(instancePtr, rawArgs0, rawArgs1, rawAr
 	return ole.S_OK
 }
 
-func (instance *TypedEventHandler) AddRef() uint64 {
+func (instance *TypedEventHandler) AddRef() uintptr {
 	return instance.addRef()
 }
 
-func (instance *TypedEventHandler) Release() uint64 {
+func (instance *TypedEventHandler) Release() uintptr {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.

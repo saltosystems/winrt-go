@@ -24,8 +24,8 @@ var (
 type Delegate interface {
 	GetIID() *ole.GUID
 	Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8 unsafe.Pointer) uintptr
-	AddRef() uint64
-	Release() uint64
+	AddRef() uintptr
+	Release() uintptr
 }
 
 // Callbacks contains the syscalls registered on Windows.
@@ -113,7 +113,7 @@ func invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawAr
 	return instance.Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8)
 }
 
-func addRef(instancePtr unsafe.Pointer) uint64 {
+func addRef(instancePtr unsafe.Pointer) uintptr {
 	instance, ok := getInstance(instancePtr)
 	if !ok {
 		// instance not found
@@ -123,7 +123,7 @@ func addRef(instancePtr unsafe.Pointer) uint64 {
 	return instance.AddRef()
 }
 
-func release(instancePtr unsafe.Pointer) uint64 {
+func release(instancePtr unsafe.Pointer) uintptr {
 	instance, ok := getInstance(instancePtr)
 	if !ok {
 		// instance not found

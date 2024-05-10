@@ -21,7 +21,7 @@ const SignatureDeferralCompletedHandler string = "delegate({ed32a372-f3c8-4faa-9
 type DeferralCompletedHandler struct {
 	ole.IUnknown
 	sync.Mutex
-	refs uint64
+	refs uintptr
 	IID  ole.GUID
 }
 
@@ -84,7 +84,7 @@ func (r *DeferralCompletedHandler) GetIID() *ole.GUID {
 }
 
 // addRef increments the reference counter by one
-func (r *DeferralCompletedHandler) addRef() uint64 {
+func (r *DeferralCompletedHandler) addRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 	r.refs++
@@ -92,7 +92,7 @@ func (r *DeferralCompletedHandler) addRef() uint64 {
 }
 
 // removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
-func (r *DeferralCompletedHandler) removeRef() uint64 {
+func (r *DeferralCompletedHandler) removeRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 
@@ -112,11 +112,11 @@ func (instance *DeferralCompletedHandler) Invoke(instancePtr, rawArgs0, rawArgs1
 	return ole.S_OK
 }
 
-func (instance *DeferralCompletedHandler) AddRef() uint64 {
+func (instance *DeferralCompletedHandler) AddRef() uintptr {
 	return instance.addRef()
 }
 
-func (instance *DeferralCompletedHandler) Release() uint64 {
+func (instance *DeferralCompletedHandler) Release() uintptr {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
