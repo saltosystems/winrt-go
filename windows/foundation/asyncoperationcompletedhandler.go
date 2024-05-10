@@ -21,7 +21,7 @@ const SignatureAsyncOperationCompletedHandler string = "delegate({fcdcf02c-e5d8-
 type AsyncOperationCompletedHandler struct {
 	ole.IUnknown
 	sync.Mutex
-	refs uint64
+	refs uintptr
 	IID  ole.GUID
 }
 
@@ -84,7 +84,7 @@ func (r *AsyncOperationCompletedHandler) GetIID() *ole.GUID {
 }
 
 // addRef increments the reference counter by one
-func (r *AsyncOperationCompletedHandler) addRef() uint64 {
+func (r *AsyncOperationCompletedHandler) addRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 	r.refs++
@@ -92,7 +92,7 @@ func (r *AsyncOperationCompletedHandler) addRef() uint64 {
 }
 
 // removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
-func (r *AsyncOperationCompletedHandler) removeRef() uint64 {
+func (r *AsyncOperationCompletedHandler) removeRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 
@@ -116,11 +116,11 @@ func (instance *AsyncOperationCompletedHandler) Invoke(instancePtr, rawArgs0, ra
 	return ole.S_OK
 }
 
-func (instance *AsyncOperationCompletedHandler) AddRef() uint64 {
+func (instance *AsyncOperationCompletedHandler) AddRef() uintptr {
 	return instance.addRef()
 }
 
-func (instance *AsyncOperationCompletedHandler) Release() uint64 {
+func (instance *AsyncOperationCompletedHandler) Release() uintptr {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
