@@ -40,13 +40,6 @@ func (impl *BluetoothLEDevice) RemoveConnectionStatusChanged(token foundation.Ev
 	return v.RemoveConnectionStatusChanged(token)
 }
 
-func (impl *BluetoothLEDevice) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
-	defer itf.Release()
-	v := (*foundation.IClosable)(unsafe.Pointer(itf))
-	return v.Close()
-}
-
 func (impl *BluetoothLEDevice) GetGattServicesAsync() (*foundation.IAsyncOperation, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
 	defer itf.Release()
@@ -66,6 +59,13 @@ func (impl *BluetoothLEDevice) GetBluetoothDeviceId() (*BluetoothDeviceId, error
 	defer itf.Release()
 	v := (*iBluetoothLEDevice4)(unsafe.Pointer(itf))
 	return v.GetBluetoothDeviceId()
+}
+
+func (impl *BluetoothLEDevice) Close() error {
+	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	defer itf.Release()
+	v := (*foundation.IClosable)(unsafe.Pointer(itf))
+	return v.Close()
 }
 
 const GUIDiBluetoothLEDevice string = "b5ee2f7b-4ad8-4642-ac48-80a0b500e887"
@@ -260,6 +260,29 @@ type iBluetoothLEDevice5Vtbl struct {
 
 func (v *iBluetoothLEDevice5) VTable() *iBluetoothLEDevice5Vtbl {
 	return (*iBluetoothLEDevice5Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+const GUIDiBluetoothLEDevice6 string = "ca7190ef-0cae-573c-a1ca-e1fc5bfc39e2"
+const SignatureiBluetoothLEDevice6 string = "{ca7190ef-0cae-573c-a1ca-e1fc5bfc39e2}"
+
+type iBluetoothLEDevice6 struct {
+	ole.IInspectable
+}
+
+type iBluetoothLEDevice6Vtbl struct {
+	ole.IInspectableVtbl
+
+	GetConnectionParameters              uintptr
+	GetConnectionPhy                     uintptr
+	RequestPreferredConnectionParameters uintptr
+	AddConnectionParametersChanged       uintptr
+	RemoveConnectionParametersChanged    uintptr
+	AddConnectionPhyChanged              uintptr
+	RemoveConnectionPhyChanged           uintptr
+}
+
+func (v *iBluetoothLEDevice6) VTable() *iBluetoothLEDevice6Vtbl {
+	return (*iBluetoothLEDevice6Vtbl)(unsafe.Pointer(v.RawVTable))
 }
 
 const GUIDiBluetoothLEDeviceStatics2 string = "5f12c06b-3bac-43e8-ad16-563271bd41c2"
