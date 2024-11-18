@@ -49,7 +49,7 @@ func NewDeferralCompletedHandler(iid *ole.GUID, callback DeferralCompletedHandle
 	inst := (*DeferralCompletedHandler)(instPtr)
 
 	// get the callbacks for the VTable
-	callbacks := delegate.RegisterCallbacks(instPtr, inst)
+	callbacks := delegate.RegisterDelegate(instPtr, inst)
 
 	// the VTable should also be allocated in the heap
 	sizeVTable := unsafe.Sizeof(*(*DeferralCompletedHandlerVtbl)(nil))

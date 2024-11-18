@@ -49,7 +49,7 @@ func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *Ty
 	inst := (*TypedEventHandler)(instPtr)
 
 	// get the callbacks for the VTable
-	callbacks := delegate.RegisterCallbacks(instPtr, inst)
+	callbacks := delegate.RegisterDelegate(instPtr, inst)
 
 	// the VTable should also be allocated in the heap
 	sizeVTable := unsafe.Sizeof(*(*TypedEventHandlerVtbl)(nil))
