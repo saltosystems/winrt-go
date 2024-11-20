@@ -34,8 +34,6 @@ func Test_GetMany(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(3), n)
 
-	println("RESP", n, resp, len(resp))
-
 	var i uint32
 	var j int = 101
 	for i = 0; i < n; i++ {

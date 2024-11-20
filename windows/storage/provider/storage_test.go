@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"log"
 	"testing"
 	"unsafe"
 
@@ -15,8 +14,7 @@ func init() {
 	ole.CoInitialize(0)
 }
 
-func Test_GetManyStorageProperyItem(t *testing.T) {
-
+func Test_GetMany_StorageProperyItem(t *testing.T) {
 	prop1, err := NewStorageProviderItemProperty()
 	require.NoError(t, err)
 	prop1.SetId(1)
@@ -29,9 +27,6 @@ func Test_GetManyStorageProperyItem(t *testing.T) {
 	prop2.SetValue("Value2")
 	prop2.SetIconResource("shell32.dll,-44")
 
-	log.Println("prop1", prop1)
-	log.Println("prop2", prop2)
-
 	a := winrt.NewArrayIterable([]any{prop1, prop2}, SignatureStorageProviderItemProperty)
 
 	it, err := a.First()
@@ -40,20 +35,19 @@ func Test_GetManyStorageProperyItem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(2), n)
 
-	println("RESP", n, resp, len(resp))
-
 	// Extract and print the StorageProviderItemProperty objects
 	for i := uint32(0); i < n; i++ {
-		itemPtr := unsafe.Pointer(resp[i]) // Convert uintptr to pointer
-
-		item := (*StorageProviderItemProperty)(itemPtr) // Cast pointer to StorageProviderItemProperty
-
+		itemPtr := unsafe.Pointer(resp[i])
+		item := (*StorageProviderItemProperty)(itemPtr)
 		// Access properties of the StorageProviderItemProperty
-		id, _ := item.GetId()
-		value, _ := item.GetValue()
-		iconResource, _ := item.GetIconResource()
-
-		fmt.Printf("Item %d: Id=%d, Value=%s, IconResource=%s\n", i+1, id, value, iconResource)
+		id, err := item.GetId()
+		require.NoError(t, err)
+		require.Equal(t, int32(i+1), id)
+		value, err := item.GetValue()
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("Value%d", i+1), value)
+		iconResource, err := item.GetIconResource()
+		require.NoError(t, err)
+		require.Equal(t, "shell32.dll,-44", iconResource)
 	}
-	require.Equal(t, 1, 2)
 }
