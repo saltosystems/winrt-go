@@ -200,7 +200,7 @@ func NewArrayIterator(items []any, itemSignature string) *collections.IIterator 
 	inst.Mutex = sync.Mutex{}
 	inst.refs = 0
 	inst.itemSignature = itemSignature
-	inst.index = -1 // not initialized
+	inst.index = 0
 
 	inst.AddRef()
 	return &inst.IIterator // ugly but works
@@ -252,6 +252,9 @@ func getCurrent(inst, out unsafe.Pointer) uintptr {
 		return ole.E_FAIL
 	}
 
+	if len(items) < 1 || it.index >= len(items) {
+		return ole.E_FAIL
+	}
 	current := items[it.index]
 
 	copyItemToPointer(current, out)
@@ -299,7 +302,7 @@ func getMany(inst, itemsAmount, outItems, outItemsSize unsafe.Pointer) uintptr {
 
 	// requested itemsAmount
 	requestedItems := int(uintptr(itemsAmount))
-	availableItems := len(items) - it.index - 1
+	availableItems := len(items) - it.index
 	returnItems := requestedItems
 	if returnItems > availableItems {
 		// not enough items available
@@ -309,8 +312,13 @@ func getMany(inst, itemsAmount, outItems, outItemsSize unsafe.Pointer) uintptr {
 	// copy items
 	n := uintptr(0)
 	for i := 0; i < returnItems; i++ {
-		it.index++
 		n += copyItemToPointer(items[it.index], unsafe.Pointer(uintptr(outItems)+n))
+		it.index++
+	}
+
+	// Advance the index beyond the last retrieved item
+	if it.index >= len(items)-1 {
+		it.index = len(items)
 	}
 
 	// output size
