@@ -89,7 +89,7 @@ func DeferralCreate(handler *DeferralCompletedHandler) (*Deferral, error) {
 	var out *Deferral
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().DeferralCreate,
-		0,                                // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),       // this
 		uintptr(unsafe.Pointer(handler)), // in DeferralCompletedHandler
 		uintptr(unsafe.Pointer(&out)),    // out Deferral
 	)

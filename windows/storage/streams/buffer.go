@@ -66,7 +66,7 @@ func BufferCreate(capacity uint32) (*Buffer, error) {
 	var out *Buffer
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BufferCreate,
-		0,                             // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(capacity),             // in uint32
 		uintptr(unsafe.Pointer(&out)), // out Buffer
 	)

@@ -52,7 +52,7 @@ func DataReaderFromBuffer(buffer *IBuffer) (*DataReader, error) {
 	var out *DataReader
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().DataReaderFromBuffer,
-		0,                               // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),      // this
 		uintptr(unsafe.Pointer(buffer)), // in IBuffer
 		uintptr(unsafe.Pointer(&out)),   // out DataReader
 	)
