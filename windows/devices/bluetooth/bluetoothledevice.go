@@ -318,7 +318,7 @@ func BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoot
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync,
-		0,                             // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(bluetoothAddress),     // in uint64
 		uintptr(bluetoothAddressType), // in BluetoothAddressType
 		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
@@ -360,7 +360,7 @@ func BluetoothLEDeviceFromBluetoothAddressAsync(bluetoothAddress uint64) (*found
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BluetoothLEDeviceFromBluetoothAddressAsync,
-		0,                             // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(bluetoothAddress),     // in uint64
 		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
 	)

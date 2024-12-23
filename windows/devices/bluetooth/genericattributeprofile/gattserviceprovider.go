@@ -218,7 +218,7 @@ func GattServiceProviderCreateAsync(serviceUuid syscall.GUID) (*foundation.IAsyn
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GattServiceProviderCreateAsync,
-		0,                                     // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),            // this
 		uintptr(unsafe.Pointer(&serviceUuid)), // in syscall.GUID
 		uintptr(unsafe.Pointer(&out)),         // out foundation.IAsyncOperation
 	)

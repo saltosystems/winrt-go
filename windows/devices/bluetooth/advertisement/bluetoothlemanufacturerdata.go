@@ -160,7 +160,7 @@ func BluetoothLEManufacturerDataCreate(companyId uint16, data *streams.IBuffer) 
 	var out *BluetoothLEManufacturerData
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BluetoothLEManufacturerDataCreate,
-		0,                             // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),    // this
 		uintptr(companyId),            // in uint16
 		uintptr(unsafe.Pointer(data)), // in streams.IBuffer
 		uintptr(unsafe.Pointer(&out)), // out BluetoothLEManufacturerData

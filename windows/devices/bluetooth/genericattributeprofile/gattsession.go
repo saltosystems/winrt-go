@@ -211,7 +211,7 @@ func GattSessionFromDeviceIdAsync(deviceId *bluetooth.BluetoothDeviceId) (*found
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GattSessionFromDeviceIdAsync,
-		0,                                 // this is a static func, so there's no this
+		uintptr(unsafe.Pointer(v)),        // this
 		uintptr(unsafe.Pointer(deviceId)), // in bluetooth.BluetoothDeviceId
 		uintptr(unsafe.Pointer(&out)),     // out foundation.IAsyncOperation
 	)

@@ -34,11 +34,7 @@ v := (*{{.FuncOwner}})(unsafe.Pointer(inspectable))
 {{ end -}}
 hr, _, _ := syscall.SyscallN(
     v.VTable().{{funcName .}},
-    {{- if .RequiresActivation}}
-        0, // this is a static func, so there's no this
-    {{else}}
-        uintptr(unsafe.Pointer(v)), // this
-    {{end -}}
+    uintptr(unsafe.Pointer(v)), // this
     {{range (concat .InParams .ReturnParams) -}}
         {{if .Type.IsArray -}}
             {{/* Arrays need to pass a pointer to their first element */ -}}
