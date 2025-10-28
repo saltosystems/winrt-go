@@ -21,6 +21,13 @@ const (
 	invokeMethodName = "Invoke"
 )
 
+// TypeDef flags constants
+// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
+const (
+	// tdWindowsRuntime indicates that a type is a WinRT type (0x4000 flag)
+	tdWindowsRuntime = 0x4000
+)
+
 type generator struct {
 	class        string
 	validateOnly bool
@@ -59,7 +66,7 @@ func (g *generator) run() error {
 
 	typeDef, err := g.mdStore.TypeDefByName(g.class)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get typedef for class %s: %w", g.class, err)
 	}
 
 	return g.generate(typeDef)
@@ -67,20 +74,20 @@ func (g *generator) run() error {
 
 func (g *generator) generate(typeDef *winmd.TypeDef) error {
 
-	// we only support WinRT types: check the tdWindowsRuntime flag (0x4000)
+	// we only support WinRT types: check the tdWindowsRuntime flag
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
-	if typeDef.Flags&0x4000 == 0 {
+	if typeDef.Flags&tdWindowsRuntime == 0 {
 		return fmt.Errorf("%s.%s is not a WinRT class", typeDef.TypeNamespace, typeDef.TypeName)
 	}
 
 	// get data & execute templates
 	if err := g.loadCodeGenData(typeDef); err != nil {
-		return err
+		return fmt.Errorf("failed to load codegen data for %s.%s: %w", typeDef.TypeNamespace, typeDef.TypeName, err)
 	}
 
 	for _, fData := range g.genDataFiles {
 		if err := g.generateDataFile(fData, typeDef); err != nil {
-			return err
+			return fmt.Errorf("failed to generate data file %s: %w", fData.Filename, err)
 		}
 	}
 	return nil
@@ -90,26 +97,26 @@ func (g *generator) generateDataFile(fData *genDataFile, typeDef *winmd.TypeDef)
 	// get templates
 	tmpl, err := getTemplates()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get templates: %w", err)
 	}
 
 	fData.Data.ComputeImports(typeDef)
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "file.tmpl", fData.Data); err != nil {
-		return err
+		return fmt.Errorf("failed to execute template for %s: %w", fData.Filename, err)
 	}
 
 	// use go imports to cleanup imports
 	goimported, err := imports.Process(fData.Filename, buf.Bytes(), nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to process imports for %s: %w", fData.Filename, err)
 	}
 
 	// format the output source code
 	formatted, err := format.Source(goimported)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to format source for %s: %w", fData.Filename, err)
 	}
 
 	if g.validateOnly {
@@ -125,7 +132,7 @@ func (g *generator) validateFileContent(fData *genDataFile, genContent []byte) e
 	// validate existing content
 	existingContent, err := os.ReadFile(fData.Filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read existing file %s: %w", fData.Filename, err)
 	}
 
 	// compare existing content to generated
@@ -141,18 +148,18 @@ func (g *generator) writeFile(fData *genDataFile, content []byte) error {
 	folder := strings.Join(parts[:len(parts)-1], "/")
 	err := os.MkdirAll(folder, os.ModePerm)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create directory %s: %w", folder, err)
 	}
 	file, err := os.Create(filepath.Clean(fData.Filename))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file %s: %w", fData.Filename, err)
 	}
 	defer func() { _ = file.Close() }()
 
 	// and write it to file
 	_, err = file.Write(content)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write to file %s: %w", fData.Filename, err)
 	}
 
 	return nil
@@ -242,6 +249,23 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 		return nil, err
 	}
 
+	// For interfaces, we need to generate convenient wrapper methods for parent interfaces.
+	// While WinRT interfaces don't inherit methods in their VTable (each interface has only
+	// its own methods), we want to provide a convenient Go API where users can call parent
+	// interface methods directly without manually using QueryInterface.
+	//
+	// However, we only generate these wrapper methods if they pass the method filter.
+	// This allows fine-grained control over which methods are exposed.
+	//
+	// Note: The VTable will still only contain the interface's own methods - the wrapper
+	// methods use QueryInterface internally to call parent interface methods.
+	inheritedFuncs, err := g.getInterfaceWrapperMethods(typeDef, requiresActivation)
+	if err != nil {
+		return nil, err
+	}
+
+	funcs = append(funcs, inheritedFuncs...)
+
 	// Interfaces' TypeDef rows must have a GuidAttribute as well as a VersionAttribute.
 	guid, err := typeDef.GUID()
 	if err != nil {
@@ -261,78 +285,59 @@ func (g *generator) createGenInterface(typeDef *winmd.TypeDef, requiresActivatio
 	}, nil
 }
 
-// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
-func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
-	var requiredImports []*genImport
-	var exclusiveInterfaceTypes []*winmd.TypeDef
-
-	// true => interface requires activation, false => interface is implemented by this class
-	activatedInterfaces := make(map[string]bool)
-
-	// get all the interfaces this class implements
-	interfaces, err := typeDef.GetImplementedInterfaces()
-	if err != nil {
-		return nil, err
-	}
-	implInterfaces := make([]*genInterface, 0, len(interfaces))
-	for _, iface := range interfaces {
-		// the interface needs to be implemented by this class
-		requiredImports = append(requiredImports, &genImport{iface.Namespace, iface.Name})
-
-		ifaceTypeDef, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		itf, err := g.createGenInterface(ifaceTypeDef, false)
-		if err != nil {
-			return nil, err
-		}
-
-		pkg := ""
-		if typeDef.TypeNamespace != ifaceTypeDef.TypeNamespace {
-			pkg = typePackage(iface.Namespace, iface.Name)
-		}
-		for _, f := range itf.Funcs {
-			f.InheritedFrom = winmd.QualifiedID{
-				Namespace: pkg,
-				Name:      typeDefGoName(ifaceTypeDef.TypeName, ifaceTypeDef.Flags.Public()),
-			}
-		}
-
-		implInterfaces = append(implInterfaces, itf)
-
-		// The interface we implement may be exclusive to this class, in which case we need to generate it.
-		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
-		// a TypeRef, the class should be found using its name.
-		if td, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name); err == nil {
-			if _, ok := g.interfaceIsExclusiveTo(td); ok {
-				exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, td)
-				activatedInterfaces[td.TypeNamespace+"."+td.TypeName] = false // implemented interfaces do not require activation
-			}
-		}
-	}
-
+// processStaticAttributes processes StaticAttribute custom attributes on a runtime class.
+// Static attributes indicate interfaces that provide static methods for the class.
+//
+// Parameters:
+//   - typeDef: The runtime class type definition
+//   - activatedInterfaces: Map tracking which interfaces require activation
+//
+// Returns:
+//   - A slice of TypeDef pointers for exclusive static interfaces
+//   - An error if processing fails
+func (g *generator) processStaticAttributes(typeDef *winmd.TypeDef, activatedInterfaces map[string]bool) ([]*winmd.TypeDef, error) {
 	// Runtime classes have zero or more StaticAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#static-interfaces
 	staticAttributeBlobs := typeDef.GetTypeDefAttributesWithType(winmd.AttributeTypeStaticAttribute)
+
+	exclusiveInterfaces := make([]*winmd.TypeDef, 0, len(staticAttributeBlobs))
+
 	for _, blob := range staticAttributeBlobs {
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found static interface", "class", class)
+
 		staticClass, err := g.mdStore.TypeDefByName(class)
 		if err != nil {
 			_ = level.Error(g.logger).Log("msg", "static class defined in StaticAttribute not found", "class", class, "err", err)
-			return nil, err
+			return nil, fmt.Errorf("static class %s not found: %w", class, err)
 		}
 
-		exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, staticClass)
+		exclusiveInterfaces = append(exclusiveInterfaces, staticClass)
 		activatedInterfaces[staticClass.TypeNamespace+"."+staticClass.TypeName] = true // static interfaces require activation
 	}
 
+	return exclusiveInterfaces, nil
+}
+
+// processActivatableAttributes processes ActivatableAttribute custom attributes on a runtime class.
+// Activatable attributes indicate how instances of the class can be created.
+//
+// Parameters:
+//   - typeDef: The runtime class type definition
+//   - activatedInterfaces: Map tracking which interfaces require activation
+//
+// Returns:
+//   - A slice of TypeDef pointers for exclusive activatable interfaces
+//   - A boolean indicating if the class has an empty (parameterless) constructor
+//   - An error if processing fails
+func (g *generator) processActivatableAttributes(typeDef *winmd.TypeDef, activatedInterfaces map[string]bool) ([]*winmd.TypeDef, bool, error) {
 	// Runtime classes have zero or more ActivatableAttribute custom attributes
 	// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#activation
 	activatableAttributeBlobs := typeDef.GetTypeDefAttributesWithType(winmd.AttributeTypeActivatableAttribute)
+
+	exclusiveInterfaces := make([]*winmd.TypeDef, 0, len(activatableAttributeBlobs))
 	hasEmptyConstructor := false
+
 	for _, blob := range activatableAttributeBlobs {
 		// check for empty constructor
 		if activatableAttrIsEmpty(blob) {
@@ -344,28 +349,48 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 		// check for an activation interface
 		class := extractClassFromBlob(blob)
 		_ = level.Debug(g.logger).Log("msg", "found activatable interface", "class", class)
+
 		activatableClass, err := g.mdStore.TypeDefByName(class)
 		if err != nil {
 			// the activatable class may be empty in some cases, example:
 			// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/winrt/windows.devices.bluetooth.advertisement.idl#L518
 			_ = level.Error(g.logger).Log("msg", "activatable class defined in ActivatableAttribute not found", "class", class, "err", err)
-
 			// so do not fail
 			continue
 		}
-		exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, activatableClass)
+
+		exclusiveInterfaces = append(exclusiveInterfaces, activatableClass)
 		activatedInterfaces[activatableClass.TypeNamespace+"."+activatableClass.TypeName] = true // activatable interfaces require activation
 	}
 
-	// generate exclusive interfaces
-	var exclusiveGenInterfaces []*genInterface
+	return exclusiveInterfaces, hasEmptyConstructor, nil
+}
+
+// generateExclusiveInterfaces generates genInterface structs for exclusive interfaces.
+// Exclusive interfaces are private interfaces that belong exclusively to a runtime class.
+//
+// Parameters:
+//   - exclusiveInterfaceTypes: TypeDef pointers for exclusive interfaces to generate
+//   - activatedInterfaces: Map indicating which interfaces require activation
+//
+// Returns:
+//   - A slice of generated exclusive interfaces
+//   - An error if generation fails
+func (g *generator) generateExclusiveInterfaces(exclusiveInterfaceTypes []*winmd.TypeDef, activatedInterfaces map[string]bool) ([]*genInterface, error) {
+	exclusiveGenInterfaces := make([]*genInterface, 0, len(exclusiveInterfaceTypes))
+
 	for _, iface := range exclusiveInterfaceTypes {
-		requiresActivation := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
+		// Check if this interface requires activation (safe map access with default value)
+		requiresActivation, ok := activatedInterfaces[iface.TypeNamespace+"."+iface.TypeName]
+		if !ok {
+			requiresActivation = false // default to false if not found
+		}
+
 		isExtendedInterface := !requiresActivation
 
 		ifaceGen, err := g.createGenInterface(iface, requiresActivation)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create exclusive interface %s.%s: %w", iface.TypeNamespace, iface.TypeName, err)
 		}
 
 		// if all methods from the exclusive interface have been filtered, and the interface
@@ -374,6 +399,7 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 		for _, m := range ifaceGen.Funcs {
 			if m.Implement {
 				impl = true
+				break
 			}
 		}
 
@@ -383,9 +409,98 @@ func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
 		}
 	}
 
-	typeSig, err := g.Signature(typeDef)
+	return exclusiveGenInterfaces, nil
+}
+
+// isValidEnumInstanceField checks if a field is a valid enum instance field.
+// A valid enum instance field must be private and have both SpecialName and RTSpecialName flags set.
+// This is the first field in an enum that defines the underlying integer type.
+//
+// Parameters:
+//   - field: The field to validate
+//
+// Returns:
+//   - true if the field is a valid enum instance field, false otherwise
+func isValidEnumInstanceField(field *types.Field) bool {
+	return field.Flags.Private() &&
+		field.Flags.SpecialName() &&
+		field.Flags.RTSpecialName()
+}
+
+// isValidEnumValueField checks if a field is a valid enum value field.
+// A valid enum value field must be public, static, literal, and have a default value.
+// These fields represent the actual enum values (e.g., MyEnum.Value1, MyEnum.Value2).
+//
+// Parameters:
+//   - field: The field to validate
+//
+// Returns:
+//   - true if the field is a valid enum value field, false otherwise
+func isValidEnumValueField(field *types.Field) bool {
+	return field.Flags.Public() &&
+		field.Flags.Static() &&
+		field.Flags.Literal() &&
+		field.Flags.HasDefault()
+}
+
+// https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#runtime-classes
+func (g *generator) createGenClass(typeDef *winmd.TypeDef) (*genClass, error) {
+	var requiredImports []*genImport
+	var exclusiveInterfaceTypes []*winmd.TypeDef
+
+	// true => interface requires activation, false => interface is implemented by this class
+	activatedInterfaces := make(map[string]bool)
+
+	// Use the shared logic to process implemented interfaces
+	// We need to set InheritedFrom for classes so that the methods are generated
+	processedInterfaces, err := g.processImplementedInterfaces(typeDef, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process implemented interfaces: %w", err)
+	}
+
+	// Extract genInterfaces and collect required imports
+	implInterfaces := make([]*genInterface, 0, len(processedInterfaces))
+	for _, procIface := range processedInterfaces {
+		implInterfaces = append(implInterfaces, procIface.generated)
+
+		// Collect required imports
+		requiredImports = append(requiredImports, &genImport{procIface.original.Namespace, procIface.original.Name})
+		activatedInterfaces[procIface.original.Namespace+"."+procIface.original.Name] = false // implemented interfaces do not require activation
+
+		// The interface we implement may be exclusive to this class, in which case we need to generate it.
+		// An exclusive (private) interface should always belong to the same winmd file. So even if this is
+		// a TypeRef, the class should be found using its name.
+		if td, err := g.mdStore.TypeDefByName(procIface.original.Namespace + "." + procIface.original.Name); err == nil {
+			if _, ok := g.interfaceIsExclusiveTo(td); ok {
+				exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, td)
+				activatedInterfaces[td.TypeNamespace+"."+td.TypeName] = false // implemented interfaces do not require activation
+			}
+		}
+	}
+
+	// Process static attributes to find static interfaces
+	staticInterfaces, err := g.processStaticAttributes(typeDef, activatedInterfaces)
 	if err != nil {
 		return nil, err
+	}
+	exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, staticInterfaces...)
+
+	// Process activatable attributes to find activation interfaces and check for empty constructor
+	activatableInterfaces, hasEmptyConstructor, err := g.processActivatableAttributes(typeDef, activatedInterfaces)
+	if err != nil {
+		return nil, err
+	}
+	exclusiveInterfaceTypes = append(exclusiveInterfaceTypes, activatableInterfaces...)
+
+	// Generate exclusive interfaces
+	exclusiveGenInterfaces, err := g.generateExclusiveInterfaces(exclusiveInterfaceTypes, activatedInterfaces)
+	if err != nil {
+		return nil, err
+	}
+
+	typeSig, err := g.Signature(typeDef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate signature for %s.%s: %w", typeDef.TypeNamespace, typeDef.TypeName, err)
 	}
 
 	return &genClass{
@@ -413,37 +528,44 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 		return nil, fmt.Errorf("enum %s has no fields", typeDef.TypeName)
 	}
 
-	// the first row should be the underlying integer type of the enum. It must have the following flags:
-	if !(fields[0].Flags.Private() && fields[0].Flags.SpecialName() && fields[0].Flags.RTSpecialName()) {
-		return nil, fmt.Errorf("enum %s has more than one instance field, expected 1", typeDef.TypeNamespace+"."+typeDef.TypeName)
+	// The first row should be the underlying integer type of the enum.
+	// Validate that it has the required flags for an enum instance field.
+	if !isValidEnumInstanceField(&fields[0]) {
+		return nil, fmt.Errorf("enum %s has invalid instance field, expected Private|SpecialName|RTSpecialName flags", typeDef.TypeNamespace+"."+typeDef.TypeName)
 	}
 
 	fieldSig, err := fields[0].Signature.Reader().Field(typeDef.Ctx())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read enum instance field signature: %w", err)
 	}
 	elType, err := g.elementType(typeDef.Ctx(), fieldSig.Field)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get element type for enum instance field: %w", err)
 	}
 	// this will always be a primitive type, so we can just use the name
 	enumType := elType.name
 
 	// After the enum value definition comes a field definition for each of the values in the enumeration.
-	var enumValues []*genEnumValue
-	for i, field := range fields[1:] {
-		if !(field.Flags.Public() && field.Flags.Static() && field.Flags.Literal() && field.Flags.HasDefault()) {
-			return nil,
-				fmt.Errorf(
-					"enum %s field value does not comply with the spec. Checkout https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums",
-					typeDef.TypeNamespace+"."+typeDef.TypeName,
-				)
+	// Pre-allocate slice for enum values (fields[1:] excludes the first field which is the type)
+	enumValues := make([]*genEnumValue, 0, len(fields)-1)
+
+	for i := range fields[1:] {
+		// Access field directly from slice to avoid memory aliasing issues with loop variable
+		field := fields[1+i]
+
+		// Validate that each enum value field has the required flags
+		if !isValidEnumValueField(&field) {
+			return nil, fmt.Errorf(
+				"enum %s field %s does not comply with the spec (expected Public|Static|Literal|HasDefault). See https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#enums",
+				typeDef.TypeNamespace+"."+typeDef.TypeName,
+				field.Name,
+			)
 		}
 
 		var fieldIndex uint32 = typeDef.FieldList.Start() + 1 + uint32(i)
 		enumRawValue, err := typeDef.GetValueForEnumField(fieldIndex)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get value for enum field %s: %w", field.Name, err)
 		}
 
 		enumValues = append(enumValues, &genEnumValue{
@@ -475,16 +597,18 @@ func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) 
 
 	curPkg := typePackage(typeDef.TypeNamespace, typeDef.TypeName)
 
-	var genFields []*genParam
+	// Pre-allocate slice for struct fields
+	genFields := make([]*genParam, 0, len(fields))
+
 	for _, f := range fields {
 		fSig, err := f.Signature.Reader().Field(typeDef.Ctx())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read field signature for %s: %w", f.Name, err)
 		}
 
 		fieldType, err := g.elementType(typeDef.Ctx(), fSig.Field)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get element type for field %s: %w", f.Name, err)
 		}
 
 		// Struct fields must be fundamental types, enums, or other structs
@@ -498,7 +622,7 @@ func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) 
 
 	typeSig, err := g.Signature(typeDef)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate signature for struct %s.%s: %w", typeDef.TypeNamespace, typeDef.TypeName, err)
 	}
 
 	return &genStruct{
@@ -561,6 +685,16 @@ func (g *generator) createGenDelegate(typeDef *winmd.TypeDef) (*genDelegate, err
 	}, nil
 }
 
+// interfaceIsExclusiveTo checks if an interface has the ExclusiveToAttribute.
+// Private interfaces with this attribute are exclusive to a specific runtime class
+// and should be generated as part of that class rather than standalone.
+//
+// Parameters:
+//   - typeDef: The interface type definition to check
+//
+// Returns:
+//   - The fully qualified name of the class this interface is exclusive to (if any)
+//   - true if the interface has the ExclusiveToAttribute, false otherwise
 func (g *generator) interfaceIsExclusiveTo(typeDef *winmd.TypeDef) (string, bool) {
 	exclusiveToBlob, err := typeDef.GetAttributeWithType(winmd.AttributeTypeExclusiveTo)
 	// an error here is fine, we just won't have the ExclusiveTo attribute
@@ -571,6 +705,19 @@ func (g *generator) interfaceIsExclusiveTo(typeDef *winmd.TypeDef) (string, bool
 	return exclusiveToClass, true
 }
 
+// activatableAttrIsEmpty checks if an ActivatableAttribute blob represents an empty constructor.
+// An empty ActivatableAttribute (indicated by a zero size) means the runtime class has
+// a parameterless constructor.
+//
+// The blob format is:
+//   - 01 00 - header (2 bytes)
+//   - XX    - size (1 byte)
+//
+// Parameters:
+//   - blob: The attribute blob to check
+//
+// Returns:
+//   - true if the blob represents an empty constructor, false otherwise
 func activatableAttrIsEmpty(blob []byte) bool {
 	// the activatable attribute is empty if the size is 0
 	// 01 00 - header
@@ -578,6 +725,19 @@ func activatableAttrIsEmpty(blob []byte) bool {
 	return len(blob) >= 3 && blob[0] == 0x01 && blob[1] == 0x00 && blob[2] == 0x00
 }
 
+// extractClassFromBlob extracts a class name from an attribute blob.
+// Attribute blobs contain type names encoded with a length prefix.
+//
+// The blob format is:
+//   - 01 00 - header (2 bytes)
+//   - XX    - size (1 byte)
+//   - ...   - class name (size bytes)
+//
+// Parameters:
+//   - blob: The attribute blob to extract from
+//
+// Returns:
+//   - The extracted class name, or empty string if the blob is invalid
 func extractClassFromBlob(blob []byte) string {
 	// the blob contains a two byte header
 	// 01 00
@@ -595,12 +755,13 @@ func extractClassFromBlob(blob []byte) string {
 }
 
 func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool) ([]*genFunc, error) {
-	var genFuncs []*genFunc
-
 	methods, err := typeDef.ResolveMethodList(typeDef.Ctx())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve method list: %w", err)
 	}
+
+	// Pre-allocate slice with exact capacity needed
+	genFuncs := make([]*genFunc, 0, len(methods))
 
 	var exclusiveToType string
 	if ex, ok := g.interfaceIsExclusiveTo(typeDef); ok {
@@ -611,13 +772,150 @@ func (g *generator) getGenFuncs(typeDef *winmd.TypeDef, requiresActivation bool)
 		methodDef := m
 		generatedFunc, err := g.genFuncFromMethod(typeDef, &methodDef, exclusiveToType, requiresActivation)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to generate function from method %s: %w", methodDef.Name, err)
 		}
 
 		genFuncs = append(genFuncs, generatedFunc)
 	}
 
 	return genFuncs, nil
+}
+
+// processedInterface holds both the generated interface and its original metadata
+type processedInterface struct {
+	generated *genInterface
+	original  winmd.QualifiedID
+}
+
+// processImplementedInterfaces processes implemented interfaces for a type and returns
+// genInterface structs with InheritedFrom set appropriately along with their original metadata.
+// This is used by both createGenInterface and createGenClass to reuse the same logic.
+//
+// Parameters:
+//   - typeDef: The type definition whose implemented interfaces should be processed
+//   - requiresActivation: Whether the interfaces require activation (affects function generation)
+//   - setInheritedFrom: Whether to set the InheritedFrom field on functions (true for inheritance, false for implementation)
+//
+// Returns:
+//   - A slice of processedInterface containing generated interfaces and their metadata
+//   - An error if interface processing fails
+func (g *generator) processImplementedInterfaces(typeDef *winmd.TypeDef, requiresActivation bool, setInheritedFrom bool) ([]processedInterface, error) {
+	interfaces, err := typeDef.GetImplementedInterfaces()
+	if err != nil {
+		return nil, nil // No inherited interfaces is fine
+	}
+
+	_ = level.Debug(g.logger).Log("msg", "found implemented interfaces", "count", len(interfaces), "interface", typeDef.TypeNamespace+"."+typeDef.TypeName)
+
+	processed := make([]processedInterface, 0, len(interfaces))
+	for _, iface := range interfaces {
+		_ = level.Debug(g.logger).Log("msg", "implemented interface", "interface", iface.Namespace+"."+iface.Name)
+
+		ifaceTypeDef, err := g.mdStore.TypeDefByName(iface.Namespace + "." + iface.Name)
+		if err != nil {
+			_ = level.Warn(g.logger).Log("msg", "could not find base interface", "interface", iface.Namespace+"."+iface.Name, "err", err)
+			continue
+		}
+
+		itf, err := g.createGenInterface(ifaceTypeDef, requiresActivation)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gen interface for %s.%s: %w", iface.Namespace, iface.Name, err)
+		}
+
+		// Set InheritedFrom for all functions in this interface if requested
+		// This is used when generating wrapper methods for inherited interfaces
+		if setInheritedFrom {
+			pkg := ""
+			if typeDef.TypeNamespace != ifaceTypeDef.TypeNamespace {
+				pkg = typePackage(iface.Namespace, iface.Name)
+			}
+			for _, f := range itf.Funcs {
+				f.InheritedFrom = winmd.QualifiedID{
+					Namespace: pkg,
+					Name:      typeDefGoName(ifaceTypeDef.TypeName, ifaceTypeDef.Flags.Public()),
+				}
+			}
+		}
+
+		processed = append(processed, processedInterface{
+			generated: itf,
+			original:  iface,
+		})
+	}
+
+	return processed, nil
+}
+
+// getInterfaceWrapperMethods generates wrapper methods for parent interface methods.
+// Unlike classes (which implement all methods from all interfaces), WinRT interfaces
+// don't inherit methods in their VTable. However, we generate convenient wrapper methods
+// in Go that use QueryInterface internally to access parent interface methods.
+//
+// These wrapper methods are only generated for PUBLIC interfaces. Private (exclusive)
+// interfaces are used internally by classes and don't need wrappers since the class
+// already provides all necessary wrapper methods.
+//
+// Additionally, wrapper methods are only generated if they pass the method filter,
+// allowing fine-grained control over which parent interface methods are exposed.
+//
+// Parameters:
+//   - typeDef: The interface type definition
+//   - requiresActivation: Whether the interface requires activation
+//
+// Returns:
+//   - A slice of genFunc for wrapper methods accessing parent interfaces
+//   - An error if processing fails
+func (g *generator) getInterfaceWrapperMethods(typeDef *winmd.TypeDef, requiresActivation bool) ([]*genFunc, error) {
+	// Exclusive (private) interfaces don't need wrapper methods for parent interfaces.
+	// They're only used internally by their runtime class, which already has all wrappers.
+	if !typeDef.Flags.Public() {
+		_ = level.Debug(g.logger).Log(
+			"msg", "skipping wrapper methods for private interface",
+			"interface", typeDef.TypeNamespace+"."+typeDef.TypeName,
+		)
+		return nil, nil
+	}
+
+	processedInterfaces, err := g.processImplementedInterfaces(typeDef, requiresActivation, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Flatten all functions from all parent interfaces
+	// Only include methods that pass the method filter
+	var wrapperFuncs []*genFunc
+	seen := make(map[string]bool) // Track by method name to avoid duplicates
+
+	for _, procIface := range processedInterfaces {
+		for _, fn := range procIface.generated.Funcs {
+			// Skip if we've already seen this method name (avoid duplicates from diamond inheritance)
+			if seen[fn.Name] {
+				_ = level.Debug(g.logger).Log(
+					"msg", "skipping duplicate wrapper method from parent interface",
+					"method", fn.Name,
+					"interface", typeDef.TypeNamespace+"."+typeDef.TypeName,
+					"parent_interface", procIface.original.Namespace+"."+procIface.original.Name,
+				)
+				continue
+			}
+
+			// Only include if it passes the method filter
+			if !g.shouldImplementMethod(fn.Name) {
+				_ = level.Debug(g.logger).Log(
+					"msg", "skipping filtered wrapper method from parent interface",
+					"method", fn.Name,
+					"interface", typeDef.TypeNamespace+"."+typeDef.TypeName,
+					"parent_interface", procIface.original.Namespace+"."+procIface.original.Name,
+				)
+				continue
+			}
+
+			seen[fn.Name] = true
+			wrapperFuncs = append(wrapperFuncs, fn)
+		}
+	}
+
+	return wrapperFuncs, nil
 }
 
 func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.MethodDef, exclusiveTo string, requiresActivation bool) (*genFunc, error) {
@@ -684,11 +982,28 @@ func (g *generator) shouldImplementMethod(methodName string) bool {
 	return g.methodFilter.Filter(methodName)
 }
 
+// getInParameters extracts and processes input parameters from a method definition.
+// This function handles the special case of array parameters, which require an implicit
+// size parameter to be added according to WinRT metadata encoding rules.
+//
+// Parameters:
+//   - curPackage: The package name of the current type (for import resolution)
+//   - typeDef: The type definition containing the method
+//   - methodDef: The method definition to extract parameters from
+//
+// Returns:
+//   - A slice of genParam representing the input parameters
+//   - An error if parameter processing fails
+//
+// Special behavior:
+//   - For array parameters (SZARRAY or ARRAY), an implicit size parameter is added
+//     immediately before the array parameter with the naming convention: paramName + "Size"
+//   - The direction (in/out) of the size parameter is inferred from the array parameter's flags
 func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 
 	params, err := methodDef.ResolveParamList(typeDef.Ctx())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve parameter list: %w", err)
 	}
 
 	// the signature contains the parameter
@@ -696,10 +1011,13 @@ func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, m
 	r := methodDef.Signature.Reader()
 	mr, err := r.Method(typeDef.Ctx())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read method signature: %w", err)
 	}
 
-	var genParams []*genParam
+	// Pre-allocate slice with capacity for parameters (may need additional space for array size params)
+	// We use len(mr.Params) * 2 to account for possible array size parameters
+	genParams := make([]*genParam, 0, len(mr.Params)*2)
+
 	for i, e := range mr.Params {
 		param := getParamByIndex(params, uint16(i+1))
 		if param == nil {
@@ -740,7 +1058,7 @@ func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, m
 
 		elType, err := g.elementType(typeDef.Ctx(), e)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get element type for parameter %d: %w", i+1, err)
 		}
 		genParams = append(genParams, &genParam{
 			callerPackage: curPackage,
@@ -753,16 +1071,29 @@ func (g *generator) getInParameters(curPackage string, typeDef *winmd.TypeDef, m
 	return genParams, nil
 }
 
+// getReturnParameters extracts and processes return parameters from a method definition.
+// WinRT methods can have at most one return value. Void return types are handled by
+// returning an empty parameter list.
+//
+// Parameters:
+//   - curPackage: The package name of the current type (for import resolution)
+//   - typeDef: The type definition containing the method
+//   - methodDef: The method definition to extract return parameters from
+//
+// Returns:
+//   - A slice containing zero or one genParam representing the return value
+//   - An error if parameter processing fails
 func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDef, methodDef *types.MethodDef) ([]*genParam, error) {
 	// the signature contains the parameter
 	// types and return type of the method
 	r := methodDef.Signature.Reader()
 	methodSignature, err := r.Method(typeDef.Ctx())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read method signature for return params: %w", err)
 	}
 
-	var genParams []*genParam
+	// Pre-allocate for exactly one return parameter (or zero if void)
+	genParams := make([]*genParam, 0, 1)
 
 	// ignore void types
 	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_VOID {
@@ -771,7 +1102,7 @@ func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDe
 
 	elType, err := g.elementType(typeDef.Ctx(), methodSignature.Return)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get element type for return param: %w", err)
 	}
 
 	genParams = append(genParams, &genParam{
@@ -785,6 +1116,15 @@ func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDe
 	return genParams, nil
 }
 
+// getParamName retrieves the name of a parameter by its sequence number.
+// Parameters are identified by a 1-based sequence number in the metadata.
+//
+// Parameters:
+//   - params: The list of parameters from the method definition
+//   - i: The 1-based sequence number of the parameter to find
+//
+// Returns:
+//   - The parameter name if found, or an error string if not found
 func getParamName(params []types.Param, i uint16) string {
 	for _, p := range params {
 		if p.Sequence == i {
@@ -794,6 +1134,15 @@ func getParamName(params []types.Param, i uint16) string {
 	return fmt.Sprintf("__ERROR_PARAM_%d_NOT_FOUND__", i)
 }
 
+// getParamByIndex retrieves a parameter by its sequence number.
+// This is similar to getParamName but returns the full Param struct.
+//
+// Parameters:
+//   - params: The list of parameters from the method definition
+//   - i: The 1-based sequence number of the parameter to find
+//
+// Returns:
+//   - A pointer to the parameter if found, nil otherwise
 func getParamByIndex(params []types.Param, i uint16) *types.Param {
 	for _, p := range params {
 		if p.Sequence == i {

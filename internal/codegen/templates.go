@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"embed"
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -223,6 +224,20 @@ func funcs() template.FuncMap {
 		},
 		"toLower": func(s string) string {
 			return strings.ToLower(s[:1]) + s[1:]
+		},
+		"dict": func(values ...interface{}) (map[string]interface{}, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict requires even number of arguments, got %d", len(values))
+			}
+			dict := make(map[string]interface{}, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict keys must be strings, got %T", values[i])
+				}
+				dict[key] = values[i+1]
+			}
+			return dict, nil
 		},
 	}
 }

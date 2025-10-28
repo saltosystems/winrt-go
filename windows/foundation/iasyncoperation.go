@@ -74,3 +74,38 @@ func (v *IAsyncOperation) GetResults() (unsafe.Pointer, error) {
 
 	return out, nil
 }
+
+func (impl *IAsyncOperation) GetId() (uint32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIAsyncInfo))
+	defer itf.Release()
+	v := (*IAsyncInfo)(unsafe.Pointer(itf))
+	return v.GetId()
+}
+
+func (impl *IAsyncOperation) GetStatus() (AsyncStatus, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIAsyncInfo))
+	defer itf.Release()
+	v := (*IAsyncInfo)(unsafe.Pointer(itf))
+	return v.GetStatus()
+}
+
+func (impl *IAsyncOperation) GetErrorCode() (HResult, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIAsyncInfo))
+	defer itf.Release()
+	v := (*IAsyncInfo)(unsafe.Pointer(itf))
+	return v.GetErrorCode()
+}
+
+func (impl *IAsyncOperation) Cancel() error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIAsyncInfo))
+	defer itf.Release()
+	v := (*IAsyncInfo)(unsafe.Pointer(itf))
+	return v.Cancel()
+}
+
+func (impl *IAsyncOperation) Close() error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIAsyncInfo))
+	defer itf.Release()
+	v := (*IAsyncInfo)(unsafe.Pointer(itf))
+	return v.Close()
+}

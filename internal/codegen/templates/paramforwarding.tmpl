@@ -1,0 +1,8 @@
+{{/* Template for forwarding input parameters to another function */}}
+{{- range .InParams -}}
+    {{if .IsOut -}}
+        {{continue -}}
+    {{end -}}
+    {{.GoVarName -}}
+    ,
+{{- end -}}

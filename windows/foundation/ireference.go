@@ -43,3 +43,276 @@ func (v *IReference) GetValue() (unsafe.Pointer, error) {
 
 	return out, nil
 }
+
+func (impl *IReference) GetType() (PropertyType, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetType()
+}
+
+func (impl *IReference) GetIsNumericScalar() (bool, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetIsNumericScalar()
+}
+
+func (impl *IReference) GetUInt8() (uint8, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt8()
+}
+
+func (impl *IReference) GetInt16() (int16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt16()
+}
+
+func (impl *IReference) GetUInt16() (uint16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt16()
+}
+
+func (impl *IReference) GetInt32() (int32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt32()
+}
+
+func (impl *IReference) GetUInt32() (uint32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt32()
+}
+
+func (impl *IReference) GetInt64() (int64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt64()
+}
+
+func (impl *IReference) GetUInt64() (uint64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt64()
+}
+
+func (impl *IReference) GetSingle() (float32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetSingle()
+}
+
+func (impl *IReference) GetDouble() (float64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetDouble()
+}
+
+func (impl *IReference) GetChar16() (byte, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetChar16()
+}
+
+func (impl *IReference) GetBoolean() (bool, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetBoolean()
+}
+
+func (impl *IReference) GetString() (string, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetString()
+}
+
+func (impl *IReference) GetGuid() (syscall.GUID, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetGuid()
+}
+
+func (impl *IReference) GetDateTime() (DateTime, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetDateTime()
+}
+
+func (impl *IReference) GetTimeSpan() (TimeSpan, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetTimeSpan()
+}
+
+func (impl *IReference) GetPoint() (Point, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetPoint()
+}
+
+func (impl *IReference) GetSize() (Size, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetSize()
+}
+
+func (impl *IReference) GetRect() (Rect, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetRect()
+}
+
+func (impl *IReference) GetUInt8Array() (uint32, []uint8, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt8Array()
+}
+
+func (impl *IReference) GetInt16Array() (uint32, []int16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt16Array()
+}
+
+func (impl *IReference) GetUInt16Array() (uint32, []uint16, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt16Array()
+}
+
+func (impl *IReference) GetInt32Array() (uint32, []int32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt32Array()
+}
+
+func (impl *IReference) GetUInt32Array() (uint32, []uint32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt32Array()
+}
+
+func (impl *IReference) GetInt64Array() (uint32, []int64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInt64Array()
+}
+
+func (impl *IReference) GetUInt64Array() (uint32, []uint64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetUInt64Array()
+}
+
+func (impl *IReference) GetSingleArray() (uint32, []float32, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetSingleArray()
+}
+
+func (impl *IReference) GetDoubleArray() (uint32, []float64, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetDoubleArray()
+}
+
+func (impl *IReference) GetChar16Array() (uint32, []byte, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetChar16Array()
+}
+
+func (impl *IReference) GetBooleanArray() (uint32, []bool, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetBooleanArray()
+}
+
+func (impl *IReference) GetStringArray() (uint32, []string, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetStringArray()
+}
+
+func (impl *IReference) GetInspectableArray() (uint32, []unsafe.Pointer, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetInspectableArray()
+}
+
+func (impl *IReference) GetGuidArray() (uint32, []syscall.GUID, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetGuidArray()
+}
+
+func (impl *IReference) GetDateTimeArray() (uint32, []DateTime, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetDateTimeArray()
+}
+
+func (impl *IReference) GetTimeSpanArray() (uint32, []TimeSpan, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetTimeSpanArray()
+}
+
+func (impl *IReference) GetPointArray() (uint32, []Point, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetPointArray()
+}
+
+func (impl *IReference) GetSizeArray() (uint32, []Size, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetSizeArray()
+}
+
+func (impl *IReference) GetRectArray() (uint32, []Rect, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIPropertyValue))
+	defer itf.Release()
+	v := (*IPropertyValue)(unsafe.Pointer(itf))
+	return v.GetRectArray()
+}

@@ -1,4 +1,12 @@
-{{if .RequiresActivation}}{{/*Activate class*/ -}}
+{{if .InheritedFrom.Name}}{{/*Inherited method - use QueryInterface*/ -}}
+itf := v.MustQueryInterface(ole.NewGUID({{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}GUID{{.InheritedFrom.Name}}))
+defer itf.Release()
+baseInterface := (*{{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}{{.InheritedFrom.Name}})(unsafe.Pointer(itf))
+return baseInterface.{{funcName . -}}(
+    {{- template "paramforwarding.tmpl" . -}}
+)
+{{- /* remove trailing white space*/ -}}
+{{else if .RequiresActivation}}{{/*Activate class*/ -}}
 inspectable, err := ole.RoGetActivationFactory("{{.ExclusiveTo}}", ole.NewGUID(GUID{{.FuncOwner}}))
 if err != nil {
     return {{range .ReturnParams -}}
@@ -7,13 +15,18 @@ if err != nil {
 v := (*{{.FuncOwner}})(unsafe.Pointer(inspectable))
 
 {{end -}}
+{{if not .InheritedFrom.Name}}
 
 {{- /* Declare out variables*/ -}}
 
 {{range (concat .InParams .ReturnParams) -}}
     {{ if not .IsOut}}{{continue}}{{end -}}
     {{if eq .GoTypeName "string" -}}
-        var {{.GoVarName}}HStr ole.HString
+        {{if .Type.IsArray -}}
+            var {{.GoVarName}}HStr *ole.HString
+        {{else -}}
+            var {{.GoVarName}}HStr ole.HString
+        {{end -}}
     {{ else -}}
         var {{.GoVarName}} {{template "variabletype.tmpl" . -}}
         {{if .Type.IsArray}} = make({{template "variabletype.tmpl" . -}}, {{.GoVarName}}Size){{end}}
@@ -37,8 +50,16 @@ hr, _, _ := syscall.SyscallN(
     uintptr(unsafe.Pointer(v)), // this
     {{range (concat .InParams .ReturnParams) -}}
         {{if .Type.IsArray -}}
-            {{/* Arrays need to pass a pointer to their first element */ -}}
-            uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // {{if .IsOut}}out{{else}}in{{end}} {{.GoTypeName}}
+            {{if eq .GoTypeName "string" -}}
+                {{if .IsOut -}}
+                    uintptr(unsafe.Pointer(&{{.GoVarName}}HStr)),   // out string array
+                {{else -}}
+                    uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // in string array
+                {{end -}}
+            {{else -}}
+                {{/* Non-string arrays pass pointer to first element */ -}}
+                uintptr(unsafe.Pointer(&{{.GoVarName}}[0])),   // {{if .IsOut}}out{{else}}in{{end}} {{.GoTypeName}}
+            {{end -}}
         {{else if .IsOut -}}
             {{if (or .Type.IsPrimitive .Type.IsEnum) -}}
                 {{if eq .GoTypeName "string" -}}
@@ -75,8 +96,17 @@ if hr != 0 {
 {{range (concat .InParams .ReturnParams) -}}
     {{ if not .IsOut}}{{continue}}{{end -}}
     {{if eq .GoTypeName "string" -}}
-        {{.GoVarName}} := {{.GoVarName}}HStr.String()
-        ole.DeleteHString({{.GoVarName}}HStr)
+        {{if .Type.IsArray -}}
+            {{.GoVarName}} := make([]string, {{.GoVarName}}Size)
+            hstrSlice := unsafe.Slice({{.GoVarName}}HStr, {{.GoVarName}}Size)
+            for i := range hstrSlice {
+                {{.GoVarName}}[i] = hstrSlice[i].String()
+                ole.DeleteHString(hstrSlice[i])
+            }
+        {{else -}}
+            {{.GoVarName}} := {{.GoVarName}}HStr.String()
+            ole.DeleteHString({{.GoVarName}}HStr)
+        {{end -}}
     {{ end -}}
 {{ end -}}
 
@@ -84,3 +114,4 @@ if hr != 0 {
 return {{range .InParams}}{{if .IsOut}}{{.GoVarName}}, {{end}}{{end -}}
     {{range .ReturnParams }}{{.GoVarName}},{{end}} nil
 {{- /* remove trailing white space*/ -}}
+{{end}}

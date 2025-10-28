@@ -9,7 +9,9 @@ type {{.Name}}Vtbl struct {
     ole.IInspectableVtbl
 
     {{range .Funcs}}
-        {{funcName .}} uintptr
+    {{- if not .InheritedFrom.Name}}
+    {{funcName .}} uintptr
+    {{- end}}
     {{- end}}
 }
 
@@ -18,5 +20,9 @@ func (v *{{.Name}}) VTable() *{{.Name}}Vtbl {
 }
 
 {{range .Funcs}}
+{{if not .InheritedFrom.Name}}
 {{template "func.tmpl" .}}
 {{end}}
+{{end}}
+
+{{template "funcext.tmpl" (dict "Funcs" .Funcs "FuncOwner" .Name)}}
