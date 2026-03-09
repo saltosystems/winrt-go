@@ -61,6 +61,13 @@ func (impl *BluetoothLEDevice) GetBluetoothDeviceId() (*BluetoothDeviceId, error
 	return v.GetBluetoothDeviceId()
 }
 
+func (impl *BluetoothLEDevice) GetConnectionPhy() (*BluetoothLEConnectionPhy, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
+	return v.GetConnectionPhy()
+}
+
 func (impl *BluetoothLEDevice) RequestPreferredConnectionParameters(preferredConnectionParameters *BluetoothLEPreferredConnectionParameters) (*BluetoothLEPreferredConnectionParametersRequest, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
 	defer itf.Release()
@@ -80,6 +87,20 @@ func (impl *BluetoothLEDevice) RemoveConnectionParametersChanged(token foundatio
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.RemoveConnectionParametersChanged(token)
+}
+
+func (impl *BluetoothLEDevice) AddConnectionPhyChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
+	return v.AddConnectionPhyChanged(handler)
+}
+
+func (impl *BluetoothLEDevice) RemoveConnectionPhyChanged(token foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
+	return v.RemoveConnectionPhyChanged(token)
 }
 
 func (impl *BluetoothLEDevice) Close() error {
@@ -306,6 +327,21 @@ func (v *iBluetoothLEDevice6) VTable() *iBluetoothLEDevice6Vtbl {
 	return (*iBluetoothLEDevice6Vtbl)(unsafe.Pointer(v.RawVTable))
 }
 
+func (v *iBluetoothLEDevice6) GetConnectionPhy() (*BluetoothLEConnectionPhy, error) {
+	var out *BluetoothLEConnectionPhy
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetConnectionPhy,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEConnectionPhy
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
 func (v *iBluetoothLEDevice6) RequestPreferredConnectionParameters(preferredConnectionParameters *BluetoothLEPreferredConnectionParameters) (*BluetoothLEPreferredConnectionParametersRequest, error) {
 	var out *BluetoothLEPreferredConnectionParametersRequest
 	hr, _, _ := syscall.SyscallN(
@@ -341,6 +377,36 @@ func (v *iBluetoothLEDevice6) AddConnectionParametersChanged(handler *foundation
 func (v *iBluetoothLEDevice6) RemoveConnectionParametersChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveConnectionParametersChanged,
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}
+
+func (v *iBluetoothLEDevice6) AddConnectionPhyChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	var out foundation.EventRegistrationToken
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().AddConnectionPhyChanged,
+		uintptr(unsafe.Pointer(v)),       // this
+		uintptr(unsafe.Pointer(handler)), // in foundation.TypedEventHandler
+		uintptr(unsafe.Pointer(&out)),    // out foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEDevice6) RemoveConnectionPhyChanged(token foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveConnectionPhyChanged,
 		uintptr(unsafe.Pointer(v)),      // this
 		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
 	)
