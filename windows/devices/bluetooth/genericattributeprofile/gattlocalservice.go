@@ -21,21 +21,30 @@ type GattLocalService struct {
 }
 
 func (impl *GattLocalService) GetUuid() (syscall.GUID, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	if err != nil {
+		return syscall.GUID{}, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalService)(unsafe.Pointer(itf))
 	return v.GetUuid()
 }
 
 func (impl *GattLocalService) CreateCharacteristicAsync(characteristicUuid syscall.GUID, parameters *GattLocalCharacteristicParameters) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalService)(unsafe.Pointer(itf))
 	return v.CreateCharacteristicAsync(characteristicUuid, parameters)
 }
 
 func (impl *GattLocalService) GetCharacteristics() (*collections.IVectorView, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalService))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalService)(unsafe.Pointer(itf))
 	return v.GetCharacteristics()

@@ -19,105 +19,150 @@ type GlobalSystemMediaTransportControlsSessionPlaybackControls struct {
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPlayEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPlayEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPauseEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPauseEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsStopEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsStopEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsRecordEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsRecordEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsFastForwardEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsFastForwardEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsRewindEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsRewindEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsNextEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsNextEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPreviousEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPreviousEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsChannelUpEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsChannelUpEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsChannelDownEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsChannelDownEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPlayPauseToggleEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPlayPauseToggleEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsShuffleEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsShuffleEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsRepeatEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsRepeatEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPlaybackRateEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPlaybackRateEnabled()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionPlaybackControls) GetIsPlaybackPositionEnabled() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionPlaybackControls))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionPlaybackControls)(unsafe.Pointer(itf))
 	return v.GetIsPlaybackPositionEnabled()

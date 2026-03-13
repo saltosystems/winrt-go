@@ -19,28 +19,40 @@ type BluetoothLEPreferredConnectionParameters struct {
 }
 
 func (impl *BluetoothLEPreferredConnectionParameters) GetLinkTimeout() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEPreferredConnectionParameters)(unsafe.Pointer(itf))
 	return v.GetLinkTimeout()
 }
 
 func (impl *BluetoothLEPreferredConnectionParameters) GetConnectionLatency() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEPreferredConnectionParameters)(unsafe.Pointer(itf))
 	return v.GetConnectionLatency()
 }
 
 func (impl *BluetoothLEPreferredConnectionParameters) GetMinConnectionInterval() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEPreferredConnectionParameters)(unsafe.Pointer(itf))
 	return v.GetMinConnectionInterval()
 }
 
 func (impl *BluetoothLEPreferredConnectionParameters) GetMaxConnectionInterval() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParameters))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEPreferredConnectionParameters)(unsafe.Pointer(itf))
 	return v.GetMaxConnectionInterval()

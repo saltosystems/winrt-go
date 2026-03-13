@@ -19,21 +19,30 @@ type BluetoothDeviceId struct {
 }
 
 func (impl *BluetoothDeviceId) GetId() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iBluetoothDeviceId)(unsafe.Pointer(itf))
 	return v.GetId()
 }
 
 func (impl *BluetoothDeviceId) GetIsClassicDevice() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothDeviceId)(unsafe.Pointer(itf))
 	return v.GetIsClassicDevice()
 }
 
 func (impl *BluetoothDeviceId) GetIsLowEnergyDevice() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothDeviceId))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothDeviceId)(unsafe.Pointer(itf))
 	return v.GetIsLowEnergyDevice()

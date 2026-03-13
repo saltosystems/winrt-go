@@ -28,35 +28,50 @@ func NewBluetoothLEAdvertisement() (*BluetoothLEAdvertisement, error) {
 }
 
 func (impl *BluetoothLEAdvertisement) GetLocalName() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
 	return v.GetLocalName()
 }
 
 func (impl *BluetoothLEAdvertisement) SetLocalName(value string) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
 	return v.SetLocalName(value)
 }
 
 func (impl *BluetoothLEAdvertisement) GetServiceUuids() (*collections.IVector, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
 	return v.GetServiceUuids()
 }
 
 func (impl *BluetoothLEAdvertisement) GetManufacturerData() (*collections.IVector, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
 	return v.GetManufacturerData()
 }
 
 func (impl *BluetoothLEAdvertisement) GetDataSections() (*collections.IVector, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisement))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisement)(unsafe.Pointer(itf))
 	return v.GetDataSections()

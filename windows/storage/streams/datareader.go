@@ -19,7 +19,10 @@ type DataReader struct {
 }
 
 func (impl *DataReader) ReadBytes(valueSize uint32) ([]uint8, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIDataReader))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIDataReader))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*IDataReader)(unsafe.Pointer(itf))
 	return v.ReadBytes(valueSize)

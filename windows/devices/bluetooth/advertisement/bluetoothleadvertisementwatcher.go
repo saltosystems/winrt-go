@@ -28,77 +28,110 @@ func NewBluetoothLEAdvertisementWatcher() (*BluetoothLEAdvertisementWatcher, err
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) GetStatus() (BluetoothLEAdvertisementWatcherStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return BluetoothLEAdvertisementWatcherStatusCreated, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) GetScanningMode() (BluetoothLEScanningMode, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return BluetoothLEScanningModePassive, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.GetScanningMode()
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) SetScanningMode(value BluetoothLEScanningMode) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.SetScanningMode(value)
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) Start() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.Start()
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) Stop() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.Stop()
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.AddReceived(handler)
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) RemoveReceived(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.RemoveReceived(token)
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.AddStopped(handler)
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher)(unsafe.Pointer(itf))
 	return v.RemoveStopped(token)
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) GetAllowExtendedAdvertisements() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher2)(unsafe.Pointer(itf))
 	return v.GetAllowExtendedAdvertisements()
 }
 
 func (impl *BluetoothLEAdvertisementWatcher) SetAllowExtendedAdvertisements(value bool) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcher2))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcher2)(unsafe.Pointer(itf))
 	return v.SetAllowExtendedAdvertisements(value)

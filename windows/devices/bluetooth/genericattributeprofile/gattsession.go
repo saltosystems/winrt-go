@@ -21,49 +21,70 @@ type GattSession struct {
 }
 
 func (impl *GattSession) GetCanMaintainConnection() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.GetCanMaintainConnection()
 }
 
 func (impl *GattSession) SetMaintainConnection(value bool) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.SetMaintainConnection(value)
 }
 
 func (impl *GattSession) GetMaintainConnection() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.GetMaintainConnection()
 }
 
 func (impl *GattSession) GetMaxPduSize() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.GetMaxPduSize()
 }
 
 func (impl *GattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.AddMaxPduSizeChanged(handler)
 }
 
 func (impl *GattSession) RemoveMaxPduSizeChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSession))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.RemoveMaxPduSizeChanged(token)
 }
 
 func (impl *GattSession) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()

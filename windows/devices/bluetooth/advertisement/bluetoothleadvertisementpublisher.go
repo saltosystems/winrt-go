@@ -27,28 +27,40 @@ func NewBluetoothLEAdvertisementPublisher() (*BluetoothLEAdvertisementPublisher,
 }
 
 func (impl *BluetoothLEAdvertisementPublisher) GetStatus() (BluetoothLEAdvertisementPublisherStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	if err != nil {
+		return BluetoothLEAdvertisementPublisherStatusCreated, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementPublisher)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *BluetoothLEAdvertisementPublisher) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementPublisher)(unsafe.Pointer(itf))
 	return v.GetAdvertisement()
 }
 
 func (impl *BluetoothLEAdvertisementPublisher) Start() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementPublisher)(unsafe.Pointer(itf))
 	return v.Start()
 }
 
 func (impl *BluetoothLEAdvertisementPublisher) Stop() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementPublisher))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementPublisher)(unsafe.Pointer(itf))
 	return v.Stop()

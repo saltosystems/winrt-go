@@ -28,28 +28,40 @@ func NewBluetoothLEManufacturerData() (*BluetoothLEManufacturerData, error) {
 }
 
 func (impl *BluetoothLEManufacturerData) GetCompanyId() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
 	return v.GetCompanyId()
 }
 
 func (impl *BluetoothLEManufacturerData) SetCompanyId(value uint16) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
 	return v.SetCompanyId(value)
 }
 
 func (impl *BluetoothLEManufacturerData) GetData() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
 	return v.GetData()
 }
 
 func (impl *BluetoothLEManufacturerData) SetData(value *streams.IBuffer) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEManufacturerData))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEManufacturerData)(unsafe.Pointer(itf))
 	return v.SetData(value)

@@ -22,63 +22,90 @@ type GattCharacteristic struct {
 }
 
 func (impl *GattCharacteristic) GetCharacteristicProperties() (GattCharacteristicProperties, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return GattCharacteristicPropertiesNone, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.GetCharacteristicProperties()
 }
 
 func (impl *GattCharacteristic) GetUuid() (syscall.GUID, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return syscall.GUID{}, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.GetUuid()
 }
 
 func (impl *GattCharacteristic) ReadValueAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.ReadValueAsync()
 }
 
 func (impl *GattCharacteristic) ReadValueWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.ReadValueWithCacheModeAsync(cacheMode)
 }
 
 func (impl *GattCharacteristic) WriteValueAsync(value *streams.IBuffer) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.WriteValueAsync(value)
 }
 
 func (impl *GattCharacteristic) WriteValueWithOptionAsync(value *streams.IBuffer, writeOption GattWriteOption) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.WriteValueWithOptionAsync(value, writeOption)
 }
 
 func (impl *GattCharacteristic) WriteClientCharacteristicConfigurationDescriptorAsync(clientCharacteristicConfigurationDescriptorValue GattClientCharacteristicConfigurationDescriptorValue) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.WriteClientCharacteristicConfigurationDescriptorAsync(clientCharacteristicConfigurationDescriptorValue)
 }
 
 func (impl *GattCharacteristic) AddValueChanged(valueChangedHandler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.AddValueChanged(valueChangedHandler)
 }
 
 func (impl *GattCharacteristic) RemoveValueChanged(valueChangedEventCookie foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristic))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristic)(unsafe.Pointer(itf))
 	return v.RemoveValueChanged(valueChangedEventCookie)

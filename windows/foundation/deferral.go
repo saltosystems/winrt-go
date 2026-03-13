@@ -19,14 +19,20 @@ type Deferral struct {
 }
 
 func (impl *Deferral) Complete() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiDeferral))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiDeferral))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iDeferral)(unsafe.Pointer(itf))
 	return v.Complete()
 }
 
 func (impl *Deferral) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*IClosable)(unsafe.Pointer(itf))
 	return v.Close()

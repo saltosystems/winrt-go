@@ -20,14 +20,20 @@ type GattReadResult struct {
 }
 
 func (impl *GattReadResult) GetStatus() (GattCommunicationStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadResult))
+	if err != nil {
+		return GattCommunicationStatusSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattReadResult)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *GattReadResult) GetValue() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattReadResult)(unsafe.Pointer(itf))
 	return v.GetValue()

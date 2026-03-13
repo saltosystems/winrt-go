@@ -21,49 +21,70 @@ type GattReadRequest struct {
 }
 
 func (impl *GattReadRequest) GetOffset() (uint32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.GetOffset()
 }
 
 func (impl *GattReadRequest) GetLength() (uint32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.GetLength()
 }
 
 func (impl *GattReadRequest) GetState() (GattRequestState, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return GattRequestStatePending, err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.GetState()
 }
 
 func (impl *GattReadRequest) AddStateChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.AddStateChanged(handler)
 }
 
 func (impl *GattReadRequest) RemoveStateChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.RemoveStateChanged(token)
 }
 
 func (impl *GattReadRequest) RespondWithValue(value *streams.IBuffer) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.RespondWithValue(value)
 }
 
 func (impl *GattReadRequest) RespondWithProtocolError(protocolError uint8) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattReadRequest))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattReadRequest)(unsafe.Pointer(itf))
 	return v.RespondWithProtocolError(protocolError)

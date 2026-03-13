@@ -19,21 +19,30 @@ type BluetoothLEConnectionPhyInfo struct {
 }
 
 func (impl *BluetoothLEConnectionPhyInfo) GetIsUncoded1MPhy() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEConnectionPhyInfo)(unsafe.Pointer(itf))
 	return v.GetIsUncoded1MPhy()
 }
 
 func (impl *BluetoothLEConnectionPhyInfo) GetIsUncoded2MPhy() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEConnectionPhyInfo)(unsafe.Pointer(itf))
 	return v.GetIsUncoded2MPhy()
 }
 
 func (impl *BluetoothLEConnectionPhyInfo) GetIsCodedPhy() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhyInfo))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEConnectionPhyInfo)(unsafe.Pointer(itf))
 	return v.GetIsCodedPhy()

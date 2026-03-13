@@ -21,28 +21,40 @@ type GattDeviceService struct {
 }
 
 func (impl *GattDeviceService) GetUuid() (syscall.GUID, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceService))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattDeviceService))
+	if err != nil {
+		return syscall.GUID{}, err
+	}
 	defer itf.Release()
 	v := (*iGattDeviceService)(unsafe.Pointer(itf))
 	return v.GetUuid()
 }
 
 func (impl *GattDeviceService) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()
 }
 
 func (impl *GattDeviceService) GetCharacteristicsAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattDeviceService3)(unsafe.Pointer(itf))
 	return v.GetCharacteristicsAsync()
 }
 
 func (impl *GattDeviceService) GetCharacteristicsWithCacheModeAsync(cacheMode bluetooth.BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattDeviceService3))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattDeviceService3)(unsafe.Pointer(itf))
 	return v.GetCharacteristicsWithCacheModeAsync(cacheMode)

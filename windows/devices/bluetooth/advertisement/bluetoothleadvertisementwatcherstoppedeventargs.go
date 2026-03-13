@@ -20,7 +20,10 @@ type BluetoothLEAdvertisementWatcherStoppedEventArgs struct {
 }
 
 func (impl *BluetoothLEAdvertisementWatcherStoppedEventArgs) GetError() (bluetooth.BluetoothError, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcherStoppedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementWatcherStoppedEventArgs))
+	if err != nil {
+		return bluetooth.BluetoothErrorSuccess, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementWatcherStoppedEventArgs)(unsafe.Pointer(itf))
 	return v.GetError()

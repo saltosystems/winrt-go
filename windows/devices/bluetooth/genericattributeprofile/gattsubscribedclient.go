@@ -20,28 +20,40 @@ type GattSubscribedClient struct {
 }
 
 func (impl *GattSubscribedClient) GetSession() (*GattSession, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattSubscribedClient)(unsafe.Pointer(itf))
 	return v.GetSession()
 }
 
 func (impl *GattSubscribedClient) GetMaxNotificationSize() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGattSubscribedClient)(unsafe.Pointer(itf))
 	return v.GetMaxNotificationSize()
 }
 
 func (impl *GattSubscribedClient) AddMaxNotificationSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGattSubscribedClient)(unsafe.Pointer(itf))
 	return v.AddMaxNotificationSizeChanged(handler)
 }
 
 func (impl *GattSubscribedClient) RemoveMaxNotificationSizeChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattSubscribedClient))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattSubscribedClient)(unsafe.Pointer(itf))
 	return v.RemoveMaxNotificationSizeChanged(token)

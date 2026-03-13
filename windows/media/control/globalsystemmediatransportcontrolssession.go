@@ -21,175 +21,250 @@ type GlobalSystemMediaTransportControlsSession struct {
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) GetSourceAppUserModelId() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.GetSourceAppUserModelId()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryGetMediaPropertiesAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryGetMediaPropertiesAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) GetTimelineProperties() (*GlobalSystemMediaTransportControlsSessionTimelineProperties, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.GetTimelineProperties()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) GetPlaybackInfo() (*GlobalSystemMediaTransportControlsSessionPlaybackInfo, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.GetPlaybackInfo()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryPlayAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryPlayAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryPauseAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryPauseAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryStopAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryStopAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryRecordAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryRecordAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryFastForwardAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryFastForwardAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryRewindAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryRewindAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TrySkipNextAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TrySkipNextAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TrySkipPreviousAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TrySkipPreviousAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangeChannelUpAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangeChannelUpAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangeChannelDownAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangeChannelDownAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryTogglePlayPauseAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryTogglePlayPauseAsync()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangeAutoRepeatModeAsync(requestedAutoRepeatMode media.MediaPlaybackAutoRepeatMode) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangeAutoRepeatModeAsync(requestedAutoRepeatMode)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangePlaybackRateAsync(requestedPlaybackRate float64) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangePlaybackRateAsync(requestedPlaybackRate)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangeShuffleActiveAsync(requestedShuffleState bool) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangeShuffleActiveAsync(requestedShuffleState)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) TryChangePlaybackPositionAsync(requestedPlaybackPosition int64) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.TryChangePlaybackPositionAsync(requestedPlaybackPosition)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) AddTimelinePropertiesChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.AddTimelinePropertiesChanged(handler)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) RemoveTimelinePropertiesChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.RemoveTimelinePropertiesChanged(token)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) AddPlaybackInfoChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.AddPlaybackInfoChanged(handler)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) RemovePlaybackInfoChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.RemovePlaybackInfoChanged(token)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) AddMediaPropertiesChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.AddMediaPropertiesChanged(handler)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSession) RemoveMediaPropertiesChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSession))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSession)(unsafe.Pointer(itf))
 	return v.RemoveMediaPropertiesChanged(token)

@@ -20,91 +20,130 @@ type BluetoothLEDevice struct {
 }
 
 func (impl *BluetoothLEDevice) GetConnectionStatus() (BluetoothConnectionStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	if err != nil {
+		return BluetoothConnectionStatusDisconnected, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice)(unsafe.Pointer(itf))
 	return v.GetConnectionStatus()
 }
 
 func (impl *BluetoothLEDevice) AddConnectionStatusChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice)(unsafe.Pointer(itf))
 	return v.AddConnectionStatusChanged(handler)
 }
 
 func (impl *BluetoothLEDevice) RemoveConnectionStatusChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice)(unsafe.Pointer(itf))
 	return v.RemoveConnectionStatusChanged(token)
 }
 
 func (impl *BluetoothLEDevice) GetGattServicesAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice3)(unsafe.Pointer(itf))
 	return v.GetGattServicesAsync()
 }
 
 func (impl *BluetoothLEDevice) GetGattServicesWithCacheModeAsync(cacheMode BluetoothCacheMode) (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice3))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice3)(unsafe.Pointer(itf))
 	return v.GetGattServicesWithCacheModeAsync(cacheMode)
 }
 
 func (impl *BluetoothLEDevice) GetBluetoothDeviceId() (*BluetoothDeviceId, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice4))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice4))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice4)(unsafe.Pointer(itf))
 	return v.GetBluetoothDeviceId()
 }
 
 func (impl *BluetoothLEDevice) GetConnectionPhy() (*BluetoothLEConnectionPhy, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.GetConnectionPhy()
 }
 
 func (impl *BluetoothLEDevice) RequestPreferredConnectionParameters(preferredConnectionParameters *BluetoothLEPreferredConnectionParameters) (*BluetoothLEPreferredConnectionParametersRequest, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.RequestPreferredConnectionParameters(preferredConnectionParameters)
 }
 
 func (impl *BluetoothLEDevice) AddConnectionParametersChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.AddConnectionParametersChanged(handler)
 }
 
 func (impl *BluetoothLEDevice) RemoveConnectionParametersChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.RemoveConnectionParametersChanged(token)
 }
 
 func (impl *BluetoothLEDevice) AddConnectionPhyChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.AddConnectionPhyChanged(handler)
 }
 
 func (impl *BluetoothLEDevice) RemoveConnectionPhyChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice6))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEDevice6)(unsafe.Pointer(itf))
 	return v.RemoveConnectionPhyChanged(token)
 }
 
 func (impl *BluetoothLEDevice) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()

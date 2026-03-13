@@ -28,42 +28,60 @@ func NewGattLocalDescriptorParameters() (*GattLocalDescriptorParameters, error) 
 }
 
 func (impl *GattLocalDescriptorParameters) SetStaticValue(value *streams.IBuffer) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.SetStaticValue(value)
 }
 
 func (impl *GattLocalDescriptorParameters) GetStaticValue() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.GetStaticValue()
 }
 
 func (impl *GattLocalDescriptorParameters) SetReadProtectionLevel(value GattProtectionLevel) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.SetReadProtectionLevel(value)
 }
 
 func (impl *GattLocalDescriptorParameters) GetReadProtectionLevel() (GattProtectionLevel, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return GattProtectionLevelPlain, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.GetReadProtectionLevel()
 }
 
 func (impl *GattLocalDescriptorParameters) SetWriteProtectionLevel(value GattProtectionLevel) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.SetWriteProtectionLevel(value)
 }
 
 func (impl *GattLocalDescriptorParameters) GetWriteProtectionLevel() (GattProtectionLevel, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalDescriptorParameters))
+	if err != nil {
+		return GattProtectionLevelPlain, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalDescriptorParameters)(unsafe.Pointer(itf))
 	return v.GetWriteProtectionLevel()

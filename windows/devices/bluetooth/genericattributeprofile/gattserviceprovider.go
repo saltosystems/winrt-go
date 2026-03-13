@@ -20,49 +20,70 @@ type GattServiceProvider struct {
 }
 
 func (impl *GattServiceProvider) GetService() (*GattLocalService, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.GetService()
 }
 
 func (impl *GattServiceProvider) GetAdvertisementStatus() (GattServiceProviderAdvertisementStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return GattServiceProviderAdvertisementStatusCreated, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.GetAdvertisementStatus()
 }
 
 func (impl *GattServiceProvider) AddAdvertisementStatusChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.AddAdvertisementStatusChanged(handler)
 }
 
 func (impl *GattServiceProvider) RemoveAdvertisementStatusChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.RemoveAdvertisementStatusChanged(token)
 }
 
 func (impl *GattServiceProvider) StartAdvertising() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.StartAdvertising()
 }
 
 func (impl *GattServiceProvider) StartAdvertisingWithParameters(parameters *GattServiceProviderAdvertisingParameters) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.StartAdvertisingWithParameters(parameters)
 }
 
 func (impl *GattServiceProvider) StopAdvertising() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProvider))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProvider)(unsafe.Pointer(itf))
 	return v.StopAdvertising()

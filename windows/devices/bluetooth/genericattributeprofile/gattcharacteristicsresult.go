@@ -20,14 +20,20 @@ type GattCharacteristicsResult struct {
 }
 
 func (impl *GattCharacteristicsResult) GetStatus() (GattCommunicationStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristicsResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristicsResult))
+	if err != nil {
+		return GattCommunicationStatusSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristicsResult)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *GattCharacteristicsResult) GetCharacteristics() (*collections.IVectorView, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristicsResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattCharacteristicsResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattCharacteristicsResult)(unsafe.Pointer(itf))
 	return v.GetCharacteristics()

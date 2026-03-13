@@ -20,14 +20,20 @@ type GattServiceProviderResult struct {
 }
 
 func (impl *GattServiceProviderResult) GetError() (bluetooth.BluetoothError, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderResult))
+	if err != nil {
+		return bluetooth.BluetoothErrorSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderResult)(unsafe.Pointer(itf))
 	return v.GetError()
 }
 
 func (impl *GattServiceProviderResult) GetServiceProvider() (*GattServiceProvider, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderResult)(unsafe.Pointer(itf))
 	return v.GetServiceProvider()

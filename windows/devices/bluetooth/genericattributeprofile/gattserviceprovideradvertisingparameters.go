@@ -28,42 +28,60 @@ func NewGattServiceProviderAdvertisingParameters() (*GattServiceProviderAdvertis
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) SetIsConnectable(value bool) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters)(unsafe.Pointer(itf))
 	return v.SetIsConnectable(value)
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) GetIsConnectable() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters)(unsafe.Pointer(itf))
 	return v.GetIsConnectable()
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) SetIsDiscoverable(value bool) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters)(unsafe.Pointer(itf))
 	return v.SetIsDiscoverable(value)
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) GetIsDiscoverable() (bool, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters))
+	if err != nil {
+		return false, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters)(unsafe.Pointer(itf))
 	return v.GetIsDiscoverable()
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) SetServiceData(value *streams.IBuffer) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters2))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters2))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters2)(unsafe.Pointer(itf))
 	return v.SetServiceData(value)
 }
 
 func (impl *GattServiceProviderAdvertisingParameters) GetServiceData() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters2))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattServiceProviderAdvertisingParameters2))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattServiceProviderAdvertisingParameters2)(unsafe.Pointer(itf))
 	return v.GetServiceData()

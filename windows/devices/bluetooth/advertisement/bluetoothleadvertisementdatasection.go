@@ -27,7 +27,10 @@ func NewBluetoothLEAdvertisementDataSection() (*BluetoothLEAdvertisementDataSect
 }
 
 func (impl *BluetoothLEAdvertisementDataSection) GetDataType() (uint8, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementDataSection))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementDataSection))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementDataSection)(unsafe.Pointer(itf))
 	return v.GetDataType()

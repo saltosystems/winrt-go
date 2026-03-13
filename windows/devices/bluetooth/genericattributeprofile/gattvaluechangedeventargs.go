@@ -21,14 +21,20 @@ type GattValueChangedEventArgs struct {
 }
 
 func (impl *GattValueChangedEventArgs) GetCharacteristicValue() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattValueChangedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattValueChangedEventArgs))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattValueChangedEventArgs)(unsafe.Pointer(itf))
 	return v.GetCharacteristicValue()
 }
 
 func (impl *GattValueChangedEventArgs) GetTimestamp() (foundation.DateTime, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattValueChangedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattValueChangedEventArgs))
+	if err != nil {
+		return foundation.DateTime{}, err
+	}
 	defer itf.Release()
 	v := (*iGattValueChangedEventArgs)(unsafe.Pointer(itf))
 	return v.GetTimestamp()

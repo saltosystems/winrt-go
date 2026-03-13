@@ -19,14 +19,20 @@ type BluetoothLEConnectionPhy struct {
 }
 
 func (impl *BluetoothLEConnectionPhy) GetTransmitInfo() (*BluetoothLEConnectionPhyInfo, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhy))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhy))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEConnectionPhy)(unsafe.Pointer(itf))
 	return v.GetTransmitInfo()
 }
 
 func (impl *BluetoothLEConnectionPhy) GetReceiveInfo() (*BluetoothLEConnectionPhyInfo, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhy))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEConnectionPhy))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEConnectionPhy)(unsafe.Pointer(itf))
 	return v.GetReceiveInfo()

@@ -20,14 +20,20 @@ type GattDeviceServicesResult struct {
 }
 
 func (impl *GattDeviceServicesResult) GetStatus() (GattCommunicationStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceServicesResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattDeviceServicesResult))
+	if err != nil {
+		return GattCommunicationStatusSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattDeviceServicesResult)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *GattDeviceServicesResult) GetServices() (*collections.IVectorView, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattDeviceServicesResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattDeviceServicesResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattDeviceServicesResult)(unsafe.Pointer(itf))
 	return v.GetServices()

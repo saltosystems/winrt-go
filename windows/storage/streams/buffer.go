@@ -19,21 +19,30 @@ type Buffer struct {
 }
 
 func (impl *Buffer) GetCapacity() (uint32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIBuffer))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*IBuffer)(unsafe.Pointer(itf))
 	return v.GetCapacity()
 }
 
 func (impl *Buffer) GetLength() (uint32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIBuffer))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*IBuffer)(unsafe.Pointer(itf))
 	return v.GetLength()
 }
 
 func (impl *Buffer) SetLength(value uint32) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIBuffer))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIBuffer))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*IBuffer)(unsafe.Pointer(itf))
 	return v.SetLength(value)

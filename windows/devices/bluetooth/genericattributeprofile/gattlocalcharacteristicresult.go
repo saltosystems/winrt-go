@@ -20,14 +20,20 @@ type GattLocalCharacteristicResult struct {
 }
 
 func (impl *GattLocalCharacteristicResult) GetCharacteristic() (*GattLocalCharacteristic, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicResult)(unsafe.Pointer(itf))
 	return v.GetCharacteristic()
 }
 
 func (impl *GattLocalCharacteristicResult) GetError() (bluetooth.BluetoothError, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicResult))
+	if err != nil {
+		return bluetooth.BluetoothErrorSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicResult)(unsafe.Pointer(itf))
 	return v.GetError()

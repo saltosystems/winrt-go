@@ -20,21 +20,30 @@ type GattWriteRequestedEventArgs struct {
 }
 
 func (impl *GattWriteRequestedEventArgs) GetSession() (*GattSession, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattWriteRequestedEventArgs)(unsafe.Pointer(itf))
 	return v.GetSession()
 }
 
 func (impl *GattWriteRequestedEventArgs) GetDeferral() (*foundation.Deferral, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattWriteRequestedEventArgs)(unsafe.Pointer(itf))
 	return v.GetDeferral()
 }
 
 func (impl *GattWriteRequestedEventArgs) GetRequestAsync() (*foundation.IAsyncOperation, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattWriteRequestedEventArgs))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattWriteRequestedEventArgs)(unsafe.Pointer(itf))
 	return v.GetRequestAsync()

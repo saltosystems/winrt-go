@@ -19,21 +19,30 @@ type BluetoothLEAdvertisementReceivedEventArgs struct {
 }
 
 func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetRawSignalStrengthInDBm() (int16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
 	return v.GetRawSignalStrengthInDBm()
 }
 
 func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetBluetoothAddress() (uint64, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
 	return v.GetBluetoothAddress()
 }
 
 func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
 	return v.GetAdvertisement()

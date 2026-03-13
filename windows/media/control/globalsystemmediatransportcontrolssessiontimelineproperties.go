@@ -20,42 +20,60 @@ type GlobalSystemMediaTransportControlsSessionTimelineProperties struct {
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetStartTime() (foundation.TimeSpan, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.TimeSpan{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetStartTime()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetEndTime() (foundation.TimeSpan, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.TimeSpan{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetEndTime()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetMinSeekTime() (foundation.TimeSpan, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.TimeSpan{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetMinSeekTime()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetMaxSeekTime() (foundation.TimeSpan, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.TimeSpan{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetMaxSeekTime()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetPosition() (foundation.TimeSpan, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.TimeSpan{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetPosition()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionTimelineProperties) GetLastUpdatedTime() (foundation.DateTime, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionTimelineProperties))
+	if err != nil {
+		return foundation.DateTime{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionTimelineProperties)(unsafe.Pointer(itf))
 	return v.GetLastUpdatedTime()

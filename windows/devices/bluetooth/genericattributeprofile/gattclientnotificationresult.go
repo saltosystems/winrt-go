@@ -20,28 +20,40 @@ type GattClientNotificationResult struct {
 }
 
 func (impl *GattClientNotificationResult) GetSubscribedClient() (*GattSubscribedClient, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattClientNotificationResult)(unsafe.Pointer(itf))
 	return v.GetSubscribedClient()
 }
 
 func (impl *GattClientNotificationResult) GetStatus() (GattCommunicationStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	if err != nil {
+		return GattCommunicationStatusSuccess, err
+	}
 	defer itf.Release()
 	v := (*iGattClientNotificationResult)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *GattClientNotificationResult) GetProtocolError() (*foundation.IReference, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattClientNotificationResult)(unsafe.Pointer(itf))
 	return v.GetProtocolError()
 }
 
 func (impl *GattClientNotificationResult) GetBytesSent() (uint16, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult2))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattClientNotificationResult2))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGattClientNotificationResult2)(unsafe.Pointer(itf))
 	return v.GetBytesSent()

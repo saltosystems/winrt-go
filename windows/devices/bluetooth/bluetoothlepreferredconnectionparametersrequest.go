@@ -20,14 +20,20 @@ type BluetoothLEPreferredConnectionParametersRequest struct {
 }
 
 func (impl *BluetoothLEPreferredConnectionParametersRequest) GetStatus() (BluetoothLEPreferredConnectionParametersRequestStatus, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParametersRequest))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiBluetoothLEPreferredConnectionParametersRequest))
+	if err != nil {
+		return BluetoothLEPreferredConnectionParametersRequestStatusUnspecified, err
+	}
 	defer itf.Release()
 	v := (*iBluetoothLEPreferredConnectionParametersRequest)(unsafe.Pointer(itf))
 	return v.GetStatus()
 }
 
 func (impl *BluetoothLEPreferredConnectionParametersRequest) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()

@@ -29,77 +29,110 @@ func NewGattLocalCharacteristicParameters() (*GattLocalCharacteristicParameters,
 }
 
 func (impl *GattLocalCharacteristicParameters) SetStaticValue(value *streams.IBuffer) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.SetStaticValue(value)
 }
 
 func (impl *GattLocalCharacteristicParameters) GetStaticValue() (*streams.IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetStaticValue()
 }
 
 func (impl *GattLocalCharacteristicParameters) SetCharacteristicProperties(value GattCharacteristicProperties) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.SetCharacteristicProperties(value)
 }
 
 func (impl *GattLocalCharacteristicParameters) GetCharacteristicProperties() (GattCharacteristicProperties, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return GattCharacteristicPropertiesNone, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetCharacteristicProperties()
 }
 
 func (impl *GattLocalCharacteristicParameters) SetReadProtectionLevel(value GattProtectionLevel) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.SetReadProtectionLevel(value)
 }
 
 func (impl *GattLocalCharacteristicParameters) GetReadProtectionLevel() (GattProtectionLevel, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return GattProtectionLevelPlain, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetReadProtectionLevel()
 }
 
 func (impl *GattLocalCharacteristicParameters) SetWriteProtectionLevel(value GattProtectionLevel) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.SetWriteProtectionLevel(value)
 }
 
 func (impl *GattLocalCharacteristicParameters) GetWriteProtectionLevel() (GattProtectionLevel, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return GattProtectionLevelPlain, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetWriteProtectionLevel()
 }
 
 func (impl *GattLocalCharacteristicParameters) SetUserDescription(value string) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.SetUserDescription(value)
 }
 
 func (impl *GattLocalCharacteristicParameters) GetUserDescription() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetUserDescription()
 }
 
 func (impl *GattLocalCharacteristicParameters) GetPresentationFormats() (*collections.IVector, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGattLocalCharacteristicParameters))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGattLocalCharacteristicParameters)(unsafe.Pointer(itf))
 	return v.GetPresentationFormats()

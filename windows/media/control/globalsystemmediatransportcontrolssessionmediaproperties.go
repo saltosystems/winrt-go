@@ -22,70 +22,100 @@ type GlobalSystemMediaTransportControlsSessionMediaProperties struct {
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetTitle() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetTitle()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetSubtitle() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetSubtitle()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetAlbumArtist() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetAlbumArtist()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetArtist() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetArtist()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetAlbumTitle() (string, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return "", err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetAlbumTitle()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetTrackNumber() (int32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetTrackNumber()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetGenres() (*collections.IVectorView, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetGenres()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetAlbumTrackCount() (int32, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return 0, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetAlbumTrackCount()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetPlaybackType() (*foundation.IReference, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetPlaybackType()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionMediaProperties) GetThumbnail() (*streams.IRandomAccessStreamReference, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionMediaProperties))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionMediaProperties)(unsafe.Pointer(itf))
 	return v.GetThumbnail()

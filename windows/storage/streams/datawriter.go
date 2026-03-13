@@ -27,21 +27,30 @@ func NewDataWriter() (*DataWriter, error) {
 }
 
 func (impl *DataWriter) WriteBytes(valueSize uint32, value []uint8) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIDataWriter))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIDataWriter))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*IDataWriter)(unsafe.Pointer(itf))
 	return v.WriteBytes(valueSize, value)
 }
 
 func (impl *DataWriter) DetachBuffer() (*IBuffer, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDIDataWriter))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDIDataWriter))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*IDataWriter)(unsafe.Pointer(itf))
 	return v.DetachBuffer()
 }
 
 func (impl *DataWriter) Close() error {
-	itf := impl.MustQueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	itf, err := impl.QueryInterface(ole.NewGUID(foundation.GUIDIClosable))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*foundation.IClosable)(unsafe.Pointer(itf))
 	return v.Close()

@@ -21,42 +21,60 @@ type GlobalSystemMediaTransportControlsSessionManager struct {
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) GetCurrentSession() (*GlobalSystemMediaTransportControlsSession, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.GetCurrentSession()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) GetSessions() (*collections.IVectorView, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return nil, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.GetSessions()
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) AddCurrentSessionChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.AddCurrentSessionChanged(handler)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) RemoveCurrentSessionChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.RemoveCurrentSessionChanged(token)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) AddSessionsChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return foundation.EventRegistrationToken{}, err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.AddSessionsChanged(handler)
 }
 
 func (impl *GlobalSystemMediaTransportControlsSessionManager) RemoveSessionsChanged(token foundation.EventRegistrationToken) error {
-	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	itf, err := impl.QueryInterface(ole.NewGUID(GUIDiGlobalSystemMediaTransportControlsSessionManager))
+	if err != nil {
+		return err
+	}
 	defer itf.Release()
 	v := (*iGlobalSystemMediaTransportControlsSessionManager)(unsafe.Pointer(itf))
 	return v.RemoveSessionsChanged(token)

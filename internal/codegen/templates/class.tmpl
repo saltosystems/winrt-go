@@ -38,7 +38,13 @@ func New{{.Name}}() (*{{.Name}}, error) {
         {{- /* method body */ -}}
 
         {
-            itf := impl.MustQueryInterface(ole.NewGUID({{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}GUID{{.InheritedFrom.Name}}))
+            itf, err := impl.QueryInterface(ole.NewGUID({{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}GUID{{.InheritedFrom.Name}}))
+            if err != nil {
+                return {{range .InParams -}}
+                    {{ if .IsOut }}{{.GoDefaultValue}},{{end -}}
+                {{end -}}
+                {{range .ReturnParams}}{{.GoDefaultValue}},{{end}} err
+            }
             defer itf.Release()
             v := (*{{if .InheritedFrom.Namespace}}{{.InheritedFrom.Namespace}}.{{end}}{{.InheritedFrom.Name}})(unsafe.Pointer(itf))
             return v.{{funcName . -}}
