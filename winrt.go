@@ -97,6 +97,10 @@ package winrt
 //go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Networking.Sockets.StreamSocketListenerConnectionReceivedEventArgs
 //go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Networking.Sockets.SocketProtectionLevel
 
+// security / certificates (referenced by StreamSocketControl)
+//go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Security.Cryptography.Certificates.Certificate
+//go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Security.Cryptography.Certificates.ChainValidationResult
+
 // streams (for L2CAP CoC read/write)
 //go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Storage.Streams.IInputStream
 //go:generate go run github.com/saltosystems/winrt-go/cmd/winrt-go-gen -debug -class Windows.Storage.Streams.IOutputStream
