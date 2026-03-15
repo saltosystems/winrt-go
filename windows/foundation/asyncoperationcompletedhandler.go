@@ -11,7 +11,6 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
-	"github.com/saltosystems/winrt-go/internal/delegate"
 	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
 
