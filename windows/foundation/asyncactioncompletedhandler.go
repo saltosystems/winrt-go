@@ -15,49 +15,49 @@ import (
 	"github.com/saltosystems/winrt-go/internal/kernel32"
 )
 
-const GUIDTypedEventHandler string = "9de1c534-6ae1-11e0-84e1-18a905bcc53f"
-const SignatureTypedEventHandler string = "delegate({9de1c534-6ae1-11e0-84e1-18a905bcc53f})"
+const GUIDAsyncActionCompletedHandler string = "a4ed5c81-76c9-40bd-8be6-b1d90fb20ae7"
+const SignatureAsyncActionCompletedHandler string = "delegate({a4ed5c81-76c9-40bd-8be6-b1d90fb20ae7})"
 
-type TypedEventHandler struct {
+type AsyncActionCompletedHandler struct {
 	ole.IUnknown
 	sync.Mutex
 	refs uintptr
 	IID  ole.GUID
 }
 
-type TypedEventHandlerVtbl struct {
+type AsyncActionCompletedHandlerVtbl struct {
 	ole.IUnknownVtbl
 	Invoke uintptr
 }
 
-type TypedEventHandlerCallback func(instance *TypedEventHandler, sender unsafe.Pointer, args unsafe.Pointer)
+type AsyncActionCompletedHandlerCallback func(instance *AsyncActionCompletedHandler, asyncInfo *IAsyncAction, asyncStatus AsyncStatus)
 
-var callbacksTypedEventHandler = &typedEventHandlerCallbacks{
+var callbacksAsyncActionCompletedHandler = &asyncActionCompletedHandlerCallbacks{
 	mu:        &sync.Mutex{},
-	callbacks: make(map[unsafe.Pointer]TypedEventHandlerCallback),
+	callbacks: make(map[unsafe.Pointer]AsyncActionCompletedHandlerCallback),
 }
 
-var releaseChannelsTypedEventHandler = &typedEventHandlerReleaseChannels{
+var releaseChannelsAsyncActionCompletedHandler = &asyncActionCompletedHandlerReleaseChannels{
 	mu:    &sync.Mutex{},
 	chans: make(map[unsafe.Pointer]chan struct{}),
 }
 
-func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *TypedEventHandler {
+func NewAsyncActionCompletedHandler(iid *ole.GUID, callback AsyncActionCompletedHandlerCallback) *AsyncActionCompletedHandler {
 	// create type instance
-	size := unsafe.Sizeof(*(*TypedEventHandler)(nil))
+	size := unsafe.Sizeof(*(*AsyncActionCompletedHandler)(nil))
 	instPtr := kernel32.Malloc(size)
-	inst := (*TypedEventHandler)(instPtr)
+	inst := (*AsyncActionCompletedHandler)(instPtr)
 
 	// get the callbacks for the VTable
 	callbacks := delegate.RegisterCallbacks(instPtr, inst)
 
 	// the VTable should also be allocated in the heap
-	sizeVTable := unsafe.Sizeof(*(*TypedEventHandlerVtbl)(nil))
+	sizeVTable := unsafe.Sizeof(*(*AsyncActionCompletedHandlerVtbl)(nil))
 	vTablePtr := kernel32.Malloc(sizeVTable)
 
 	inst.RawVTable = (*interface{})(vTablePtr)
 
-	vTable := (*TypedEventHandlerVtbl)(vTablePtr)
+	vTable := (*AsyncActionCompletedHandlerVtbl)(vTablePtr)
 	vTable.IUnknownVtbl = ole.IUnknownVtbl{
 		QueryInterface: callbacks.QueryInterface,
 		AddRef:         callbacks.AddRef,
@@ -70,21 +70,21 @@ func NewTypedEventHandler(iid *ole.GUID, callback TypedEventHandlerCallback) *Ty
 	inst.Mutex = sync.Mutex{}
 	inst.refs = 0
 
-	callbacksTypedEventHandler.add(unsafe.Pointer(inst), callback)
+	callbacksAsyncActionCompletedHandler.add(unsafe.Pointer(inst), callback)
 
-	// See the docs in the releaseChannelsTypedEventHandler struct
-	releaseChannelsTypedEventHandler.acquire(unsafe.Pointer(inst))
+	// See the docs in the releaseChannelsAsyncActionCompletedHandler struct
+	releaseChannelsAsyncActionCompletedHandler.acquire(unsafe.Pointer(inst))
 
 	inst.addRef()
 	return inst
 }
 
-func (r *TypedEventHandler) GetIID() *ole.GUID {
+func (r *AsyncActionCompletedHandler) GetIID() *ole.GUID {
 	return &r.IID
 }
 
 // addRef increments the reference counter by one
-func (r *TypedEventHandler) addRef() uintptr {
+func (r *AsyncActionCompletedHandler) addRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 	r.refs++
@@ -92,7 +92,7 @@ func (r *TypedEventHandler) addRef() uintptr {
 }
 
 // removeRef decrements the reference counter by one. If it was already zero, it will just return zero.
-func (r *TypedEventHandler) removeRef() uintptr {
+func (r *AsyncActionCompletedHandler) removeRef() uintptr {
 	r.Lock()
 	defer r.Unlock()
 
@@ -103,33 +103,33 @@ func (r *TypedEventHandler) removeRef() uintptr {
 	return r.refs
 }
 
-func (instance *TypedEventHandler) Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8 unsafe.Pointer) uintptr {
-	senderPtr := rawArgs0
-	argsPtr := rawArgs1
+func (instance *AsyncActionCompletedHandler) Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8 unsafe.Pointer) uintptr {
+	asyncInfoPtr := rawArgs0
+	asyncStatusRaw := (int32)(uintptr(rawArgs1))
 
 	// See the quote above.
-	sender := (unsafe.Pointer)(senderPtr)
-	args := (unsafe.Pointer)(argsPtr)
-	if callback, ok := callbacksTypedEventHandler.get(instancePtr); ok {
-		callback(instance, sender, args)
+	asyncInfo := (*IAsyncAction)(asyncInfoPtr)
+	asyncStatus := (AsyncStatus)(asyncStatusRaw)
+	if callback, ok := callbacksAsyncActionCompletedHandler.get(instancePtr); ok {
+		callback(instance, asyncInfo, asyncStatus)
 	}
 	return ole.S_OK
 }
 
-func (instance *TypedEventHandler) AddRef() uintptr {
+func (instance *AsyncActionCompletedHandler) AddRef() uintptr {
 	return instance.addRef()
 }
 
-func (instance *TypedEventHandler) Release() uintptr {
+func (instance *AsyncActionCompletedHandler) Release() uintptr {
 	rem := instance.removeRef()
 	if rem == 0 {
 		// We're done.
 		instancePtr := unsafe.Pointer(instance)
-		callbacksTypedEventHandler.delete(instancePtr)
+		callbacksAsyncActionCompletedHandler.delete(instancePtr)
 
 		// stop release channels used to avoid
 		// https://github.com/golang/go/issues/55015
-		releaseChannelsTypedEventHandler.release(instancePtr)
+		releaseChannelsAsyncActionCompletedHandler.release(instancePtr)
 
 		kernel32.Free(unsafe.Pointer(instance.RawVTable))
 		kernel32.Free(instancePtr)
@@ -137,19 +137,19 @@ func (instance *TypedEventHandler) Release() uintptr {
 	return rem
 }
 
-type typedEventHandlerCallbacks struct {
+type asyncActionCompletedHandlerCallbacks struct {
 	mu        *sync.Mutex
-	callbacks map[unsafe.Pointer]TypedEventHandlerCallback
+	callbacks map[unsafe.Pointer]AsyncActionCompletedHandlerCallback
 }
 
-func (m *typedEventHandlerCallbacks) add(p unsafe.Pointer, v TypedEventHandlerCallback) {
+func (m *asyncActionCompletedHandlerCallbacks) add(p unsafe.Pointer, v AsyncActionCompletedHandlerCallback) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.callbacks[p] = v
 }
 
-func (m *typedEventHandlerCallbacks) get(p unsafe.Pointer) (TypedEventHandlerCallback, bool) {
+func (m *asyncActionCompletedHandlerCallbacks) get(p unsafe.Pointer) (AsyncActionCompletedHandlerCallback, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -157,7 +157,7 @@ func (m *typedEventHandlerCallbacks) get(p unsafe.Pointer) (TypedEventHandlerCal
 	return v, ok
 }
 
-func (m *typedEventHandlerCallbacks) delete(p unsafe.Pointer) {
+func (m *asyncActionCompletedHandlerCallbacks) delete(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -168,12 +168,12 @@ func (m *typedEventHandlerCallbacks) delete(p unsafe.Pointer) {
 // used to keep a goroutine alive during the lifecycle of this object.
 // This is required to avoid causing a deadlock error.
 // See this: https://github.com/golang/go/issues/55015
-type typedEventHandlerReleaseChannels struct {
+type asyncActionCompletedHandlerReleaseChannels struct {
 	mu    *sync.Mutex
 	chans map[unsafe.Pointer]chan struct{}
 }
 
-func (m *typedEventHandlerReleaseChannels) acquire(p unsafe.Pointer) {
+func (m *asyncActionCompletedHandlerReleaseChannels) acquire(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -197,7 +197,7 @@ func (m *typedEventHandlerReleaseChannels) acquire(p unsafe.Pointer) {
 	}()
 }
 
-func (m *typedEventHandlerReleaseChannels) release(p unsafe.Pointer) {
+func (m *asyncActionCompletedHandlerReleaseChannels) release(p unsafe.Pointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
