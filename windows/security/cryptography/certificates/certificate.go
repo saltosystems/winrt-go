@@ -35,21 +35,21 @@ func (impl *Certificate) BuildChainWithParametersAsync(certificates *collections
 	return v.BuildChainWithParametersAsync(certificates, parameters)
 }
 
-func (impl *Certificate) GetSerialNumber() ([]uint8, error) {
+func (impl *Certificate) GetSerialNumber() (uint32, []uint8, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiCertificate))
 	defer itf.Release()
 	v := (*iCertificate)(unsafe.Pointer(itf))
 	return v.GetSerialNumber()
 }
 
-func (impl *Certificate) GetHashValue() ([]uint8, error) {
+func (impl *Certificate) GetHashValue() (uint32, []uint8, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiCertificate))
 	defer itf.Release()
 	v := (*iCertificate)(unsafe.Pointer(itf))
 	return v.GetHashValue()
 }
 
-func (impl *Certificate) GetHashValueWithAlgorithm(hashAlgorithmName string) ([]uint8, error) {
+func (impl *Certificate) GetHashValueWithAlgorithm(hashAlgorithmName string) (uint32, []uint8, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiCertificate))
 	defer itf.Release()
 	v := (*iCertificate)(unsafe.Pointer(itf))
@@ -253,54 +253,60 @@ func (v *iCertificate) BuildChainWithParametersAsync(certificates *collections.I
 	return out, nil
 }
 
-func (v *iCertificate) GetSerialNumber() ([]uint8, error) {
+func (v *iCertificate) GetSerialNumber() (uint32, []uint8, error) {
+	var outSize uint32
 	var out []uint8 = make([]uint8, outSize)
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetSerialNumber,
-		uintptr(unsafe.Pointer(v)),       // this
-		uintptr(unsafe.Pointer(&out[0])), // out uint8
+		uintptr(unsafe.Pointer(v)),        // this
+		uintptr(unsafe.Pointer(&outSize)), // out uint32
+		uintptr(unsafe.Pointer(&out[0])),  // out uint8
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return 0, nil, ole.NewError(hr)
 	}
 
-	return out, nil
+	return outSize, out, nil
 }
 
-func (v *iCertificate) GetHashValue() ([]uint8, error) {
+func (v *iCertificate) GetHashValue() (uint32, []uint8, error) {
+	var outSize uint32
 	var out []uint8 = make([]uint8, outSize)
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetHashValue,
-		uintptr(unsafe.Pointer(v)),       // this
-		uintptr(unsafe.Pointer(&out[0])), // out uint8
+		uintptr(unsafe.Pointer(v)),        // this
+		uintptr(unsafe.Pointer(&outSize)), // out uint32
+		uintptr(unsafe.Pointer(&out[0])),  // out uint8
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return 0, nil, ole.NewError(hr)
 	}
 
-	return out, nil
+	return outSize, out, nil
 }
 
-func (v *iCertificate) GetHashValueWithAlgorithm(hashAlgorithmName string) ([]uint8, error) {
+func (v *iCertificate) GetHashValueWithAlgorithm(hashAlgorithmName string) (uint32, []uint8, error) {
+	var outSize uint32
 	var out []uint8 = make([]uint8, outSize)
 	hashAlgorithmNameHStr, err := ole.NewHString(hashAlgorithmName)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetHashValueWithAlgorithm,
-		uintptr(unsafe.Pointer(v)),       // this
-		uintptr(hashAlgorithmNameHStr),   // in string
-		uintptr(unsafe.Pointer(&out[0])), // out uint8
+		uintptr(unsafe.Pointer(v)),        // this
+		uintptr(hashAlgorithmNameHStr),    // in string
+		uintptr(unsafe.Pointer(&outSize)), // out uint32
+		uintptr(unsafe.Pointer(&out[0])),  // out uint8
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return 0, nil, ole.NewError(hr)
 	}
 
-	return out, nil
+	return outSize, out, nil
 }
 
 func (v *iCertificate) GetCertificateBlob() (*streams.IBuffer, error) {
