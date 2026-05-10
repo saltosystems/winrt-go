@@ -48,6 +48,13 @@ func (impl *GattSession) GetMaxPduSize() (uint16, error) {
 	return v.GetMaxPduSize()
 }
 
+func (impl *GattSession) GetSessionStatus() (GattSessionStatus, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.GetSessionStatus()
+}
+
 func (impl *GattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
 	defer itf.Release()
@@ -60,6 +67,20 @@ func (impl *GattSession) RemoveMaxPduSizeChanged(token foundation.EventRegistrat
 	defer itf.Release()
 	v := (*iGattSession)(unsafe.Pointer(itf))
 	return v.RemoveMaxPduSizeChanged(token)
+}
+
+func (impl *GattSession) AddSessionStatusChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.AddSessionStatusChanged(handler)
+}
+
+func (impl *GattSession) RemoveSessionStatusChanged(token foundation.EventRegistrationToken) error {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattSession))
+	defer itf.Release()
+	v := (*iGattSession)(unsafe.Pointer(itf))
+	return v.RemoveSessionStatusChanged(token)
 }
 
 func (impl *GattSession) Close() error {
@@ -154,6 +175,21 @@ func (v *iGattSession) GetMaxPduSize() (uint16, error) {
 	return out, nil
 }
 
+func (v *iGattSession) GetSessionStatus() (GattSessionStatus, error) {
+	var out GattSessionStatus
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetSessionStatus,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out GattSessionStatus
+	)
+
+	if hr != 0 {
+		return GattSessionStatusClosed, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
 func (v *iGattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
 	var out foundation.EventRegistrationToken
 	hr, _, _ := syscall.SyscallN(
@@ -173,6 +209,36 @@ func (v *iGattSession) AddMaxPduSizeChanged(handler *foundation.TypedEventHandle
 func (v *iGattSession) RemoveMaxPduSizeChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveMaxPduSizeChanged,
+		uintptr(unsafe.Pointer(v)),      // this
+		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}
+
+func (v *iGattSession) AddSessionStatusChanged(handler *foundation.TypedEventHandler) (foundation.EventRegistrationToken, error) {
+	var out foundation.EventRegistrationToken
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().AddSessionStatusChanged,
+		uintptr(unsafe.Pointer(v)),       // this
+		uintptr(unsafe.Pointer(handler)), // in foundation.TypedEventHandler
+		uintptr(unsafe.Pointer(&out)),    // out foundation.EventRegistrationToken
+	)
+
+	if hr != 0 {
+		return foundation.EventRegistrationToken{}, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattSession) RemoveSessionStatusChanged(token foundation.EventRegistrationToken) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().RemoveSessionStatusChanged,
 		uintptr(unsafe.Pointer(v)),      // this
 		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
 	)
