@@ -32,6 +32,13 @@ func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetBluetoothAddress() (ui
 	return v.GetBluetoothAddress()
 }
 
+func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetAdvertisementType() (BluetoothLEAdvertisementType, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
+	defer itf.Release()
+	v := (*iBluetoothLEAdvertisementReceivedEventArgs)(unsafe.Pointer(itf))
+	return v.GetAdvertisementType()
+}
+
 func (impl *BluetoothLEAdvertisementReceivedEventArgs) GetAdvertisement() (*BluetoothLEAdvertisement, error) {
 	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEAdvertisementReceivedEventArgs))
 	defer itf.Release()
@@ -85,6 +92,21 @@ func (v *iBluetoothLEAdvertisementReceivedEventArgs) GetBluetoothAddress() (uint
 
 	if hr != 0 {
 		return 0, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iBluetoothLEAdvertisementReceivedEventArgs) GetAdvertisementType() (BluetoothLEAdvertisementType, error) {
+	var out BluetoothLEAdvertisementType
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetAdvertisementType,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out BluetoothLEAdvertisementType
+	)
+
+	if hr != 0 {
+		return BluetoothLEAdvertisementTypeConnectableUndirected, ole.NewError(hr)
 	}
 
 	return out, nil
