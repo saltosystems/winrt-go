@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/foundation"
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 )
 
@@ -24,6 +25,13 @@ func (impl *GattCharacteristicsResult) GetStatus() (GattCommunicationStatus, err
 	defer itf.Release()
 	v := (*iGattCharacteristicsResult)(unsafe.Pointer(itf))
 	return v.GetStatus()
+}
+
+func (impl *GattCharacteristicsResult) GetProtocolError() (*foundation.IReference, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattCharacteristicsResult))
+	defer itf.Release()
+	v := (*iGattCharacteristicsResult)(unsafe.Pointer(itf))
+	return v.GetProtocolError()
 }
 
 func (impl *GattCharacteristicsResult) GetCharacteristics() (*collections.IVectorView, error) {
@@ -62,6 +70,21 @@ func (v *iGattCharacteristicsResult) GetStatus() (GattCommunicationStatus, error
 
 	if hr != 0 {
 		return GattCommunicationStatusSuccess, ole.NewError(hr)
+	}
+
+	return out, nil
+}
+
+func (v *iGattCharacteristicsResult) GetProtocolError() (*foundation.IReference, error) {
+	var out *foundation.IReference
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetProtocolError,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out foundation.IReference
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
 	}
 
 	return out, nil
