@@ -668,7 +668,7 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		}
 	}
 
-	return &genFunc{
+	f := &genFunc{
 		Name:               overloadName,
 		RequiresImports:    requiredImports,
 		Implement:          implement,
@@ -677,7 +677,68 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		FuncOwner:          typeDefGoName(typeDef.TypeName, typeDef.Flags.Public()),
 		ExclusiveTo:        exclusiveTo,
 		RequiresActivation: requiresActivation,
-	}, nil
+	}
+	f.Into = intoFunc(f)
+
+	return f, nil
+}
+
+// intoFunc returns a variant of f that writes its generic out parameters to memory
+// provided by the caller, or nil if f has no generic out parameters.
+//
+// Generic types are passed around as an unsafe.Pointer, so f only has room for a
+// pointer for each generic out parameter. That is fine when the generic type is an
+// interface or a class, but a value type such as a GUID is bigger than a pointer and
+// the callee would write past it.
+func intoFunc(f *genFunc) *genFunc {
+	isGenericOut := func(p *genParam) bool { return p.IsOut && p.Type.IsGeneric }
+
+	hasGenericOut := false
+	for _, p := range append(append([]*genParam{}, f.InParams...), f.ReturnParams...) {
+		if isGenericOut(p) {
+			hasGenericOut = true
+			break
+		}
+	}
+	if !hasGenericOut {
+		return nil
+	}
+
+	// a generic out parameter becomes an unsafe.Pointer that is passed as is
+	toPointer := func(p *genParam) *genParam {
+		t := *p.Type
+		t.IsArray = false
+		return &genParam{
+			callerPackage:        p.callerPackage,
+			varName:              p.varName,
+			Type:                 &t,
+			IsOut:                false,
+			IsCallerAllocatedOut: true,
+		}
+	}
+
+	into := *f
+	into.Into = nil
+	into.NameSuffix = "Into"
+	into.InParams = nil
+	into.ReturnParams = nil
+	for _, p := range f.InParams {
+		if isGenericOut(p) {
+			p = toPointer(p)
+		}
+		into.InParams = append(into.InParams, p)
+	}
+	// the return value is the last parameter of the call, so it can be moved to the
+	// end of the in parameters without changing the order of the call arguments
+	for _, p := range f.ReturnParams {
+		if isGenericOut(p) {
+			into.InParams = append(into.InParams, toPointer(p))
+		} else {
+			into.ReturnParams = append(into.ReturnParams, p)
+		}
+	}
+
+	return &into
 }
 
 func (g *generator) shouldImplementMethod(methodName string) bool {

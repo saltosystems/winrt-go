@@ -48,6 +48,25 @@ func (v *IVectorView) GetAt(index uint32) (unsafe.Pointer, error) {
 	return out, nil
 }
 
+// GetAtInto is GetAt for generic types that do not fit in an unsafe.Pointer,
+// such as a GUID. It writes each generic result to the memory its unsafe.Pointer
+// parameter points to, which must have room for the result (for an array, for
+// every element).
+func (v *IVectorView) GetAtInto(index uint32, out unsafe.Pointer) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetAt,
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(index),             // in uint32
+		uintptr(out),               // out unsafe.Pointer
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}
+
 func (v *IVectorView) GetSize() (uint32, error) {
 	var out uint32
 	hr, _, _ := syscall.SyscallN(
@@ -98,4 +117,26 @@ func (v *IVectorView) GetMany(startIndex uint32, itemsSize uint32) ([]unsafe.Poi
 	}
 
 	return items, out, nil
+}
+
+// GetManyInto is GetMany for generic types that do not fit in an unsafe.Pointer,
+// such as a GUID. It writes each generic result to the memory its unsafe.Pointer
+// parameter points to, which must have room for the result (for an array, for
+// every element).
+func (v *IVectorView) GetManyInto(startIndex uint32, itemsSize uint32, items unsafe.Pointer) (uint32, error) {
+	var out uint32
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetMany,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(startIndex),           // in uint32
+		uintptr(itemsSize),            // in uint32
+		uintptr(items),                // out unsafe.Pointer
+		uintptr(unsafe.Pointer(&out)), // out uint32
+	)
+
+	if hr != 0 {
+		return 0, ole.NewError(hr)
+	}
+
+	return out, nil
 }

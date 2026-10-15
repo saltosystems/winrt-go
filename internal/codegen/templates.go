@@ -117,6 +117,12 @@ type genFunc struct {
 	RequiresActivation bool
 
 	InheritedFrom winmd.QualifiedID
+
+	// Into is a variant of this function that writes its generic out parameters
+	// to memory provided by the caller. It is nil if there are no generic out parameters.
+	Into *genFunc
+	// NameSuffix is added to the name of the Go method, but not to the vtable entry.
+	NameSuffix string
 }
 
 type genImport struct {
@@ -166,6 +172,9 @@ type genParam struct {
 	Type *genParamType
 
 	IsOut bool
+	// IsCallerAllocatedOut is set on an out parameter that the caller passes as a
+	// pointer to its own memory, so it is not declared nor returned by the function.
+	IsCallerAllocatedOut bool
 }
 
 func (g *genParam) GoVarName() string {
@@ -218,6 +227,9 @@ func getTemplates() (*template.Template, error) {
 func funcs() template.FuncMap {
 	return template.FuncMap{
 		"funcName": funcName,
+		"methodName": func(m genFunc) string {
+			return funcName(m) + m.NameSuffix
+		},
 		"concat": func(a, b []*genParam) []*genParam {
 			return append(a, b...)
 		},

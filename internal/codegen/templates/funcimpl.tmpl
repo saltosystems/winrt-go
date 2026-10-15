@@ -60,7 +60,7 @@ hr, _, _ := syscall.SyscallN(
                 uintptr({{.GoVarName}}),   // in {{.GoTypeName}}
             {{end -}}
         {{else if .Type.IsGeneric -}}
-            uintptr({{.GoVarName}}),   // in {{.GoTypeName}}
+            uintptr({{.GoVarName}}),   // {{if .IsCallerAllocatedOut}}out{{else}}in{{end}} {{.GoTypeName}}
         {{else -}}
             uintptr(unsafe.Pointer(&{{.GoVarName}})),   // in {{.GoTypeName}}
         {{end -}}

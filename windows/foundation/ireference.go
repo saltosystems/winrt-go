@@ -43,3 +43,21 @@ func (v *IReference) GetValue() (unsafe.Pointer, error) {
 
 	return out, nil
 }
+
+// GetValueInto is GetValue for generic types that do not fit in an unsafe.Pointer,
+// such as a GUID. It writes each generic result to the memory its unsafe.Pointer
+// parameter points to, which must have room for the result (for an array, for
+// every element).
+func (v *IReference) GetValueInto(out unsafe.Pointer) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetValue,
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(out),               // out unsafe.Pointer
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}

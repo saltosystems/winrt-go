@@ -74,3 +74,21 @@ func (v *IAsyncOperation) GetResults() (unsafe.Pointer, error) {
 
 	return out, nil
 }
+
+// GetResultsInto is GetResults for generic types that do not fit in an unsafe.Pointer,
+// such as a GUID. It writes each generic result to the memory its unsafe.Pointer
+// parameter points to, which must have room for the result (for an array, for
+// every element).
+func (v *IAsyncOperation) GetResultsInto(out unsafe.Pointer) error {
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetResults,
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(out),               // out unsafe.Pointer
+	)
+
+	if hr != 0 {
+		return ole.NewError(hr)
+	}
+
+	return nil
+}

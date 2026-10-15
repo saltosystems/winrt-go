@@ -1,9 +1,15 @@
 {{if .Implement}}
+    {{if .NameSuffix -}}
+    // {{methodName .}} is {{funcName .}} for generic types that do not fit in an unsafe.Pointer,
+    // such as a GUID. It writes each generic result to the memory its unsafe.Pointer
+    // parameter points to, which must have room for the result (for an array, for
+    // every element).
+    {{end -}}
     func {{if and .FuncOwner (not .RequiresActivation)}}
         (v *{{.FuncOwner}})
     {{- end -}}
 
-    {{funcName .}} 
+    {{methodName .}}
     
     {{- /* in params */ -}}
 
@@ -27,4 +33,8 @@
     {
     {{template "funcimpl.tmpl" .}}
     }
+
+    {{with .Into}}
+    {{template "func.tmpl" .}}
+    {{end}}
 {{end}}
