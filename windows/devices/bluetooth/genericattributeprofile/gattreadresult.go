@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/foundation"
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
@@ -31,6 +32,13 @@ func (impl *GattReadResult) GetValue() (*streams.IBuffer, error) {
 	defer itf.Release()
 	v := (*iGattReadResult)(unsafe.Pointer(itf))
 	return v.GetValue()
+}
+
+func (impl *GattReadResult) GetProtocolError() (*foundation.IReference, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiGattReadResult2))
+	defer itf.Release()
+	v := (*iGattReadResult2)(unsafe.Pointer(itf))
+	return v.GetProtocolError()
 }
 
 const GUIDiGattReadResult string = "63a66f08-1aea-4c4c-a50f-97bae474b348"
@@ -96,4 +104,19 @@ type iGattReadResult2Vtbl struct {
 
 func (v *iGattReadResult2) VTable() *iGattReadResult2Vtbl {
 	return (*iGattReadResult2Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iGattReadResult2) GetProtocolError() (*foundation.IReference, error) {
+	var out *foundation.IReference
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetProtocolError,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out foundation.IReference
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
 }
