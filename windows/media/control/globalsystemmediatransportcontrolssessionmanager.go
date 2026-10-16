@@ -133,8 +133,8 @@ func (v *iGlobalSystemMediaTransportControlsSessionManager) AddCurrentSessionCha
 func (v *iGlobalSystemMediaTransportControlsSessionManager) RemoveCurrentSessionChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveCurrentSessionChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -163,8 +163,8 @@ func (v *iGlobalSystemMediaTransportControlsSessionManager) AddSessionsChanged(h
 func (v *iGlobalSystemMediaTransportControlsSessionManager) RemoveSessionsChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveSessionsChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

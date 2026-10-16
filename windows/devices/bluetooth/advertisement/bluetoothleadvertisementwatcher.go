@@ -226,8 +226,8 @@ func (v *iBluetoothLEAdvertisementWatcher) AddReceived(handler *foundation.Typed
 func (v *iBluetoothLEAdvertisementWatcher) RemoveReceived(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveReceived,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -256,8 +256,8 @@ func (v *iBluetoothLEAdvertisementWatcher) AddStopped(handler *foundation.TypedE
 func (v *iBluetoothLEAdvertisementWatcher) RemoveStopped(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveStopped,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

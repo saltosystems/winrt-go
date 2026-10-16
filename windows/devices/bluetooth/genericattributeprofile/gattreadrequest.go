@@ -156,8 +156,8 @@ func (v *iGattReadRequest) AddStateChanged(handler *foundation.TypedEventHandler
 func (v *iGattReadRequest) RemoveStateChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveStateChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

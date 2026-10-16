@@ -546,8 +546,8 @@ func (v *iGlobalSystemMediaTransportControlsSession) AddTimelinePropertiesChange
 func (v *iGlobalSystemMediaTransportControlsSession) RemoveTimelinePropertiesChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveTimelinePropertiesChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -576,8 +576,8 @@ func (v *iGlobalSystemMediaTransportControlsSession) AddPlaybackInfoChanged(hand
 func (v *iGlobalSystemMediaTransportControlsSession) RemovePlaybackInfoChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemovePlaybackInfoChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -606,8 +606,8 @@ func (v *iGlobalSystemMediaTransportControlsSession) AddMediaPropertiesChanged(h
 func (v *iGlobalSystemMediaTransportControlsSession) RemoveMediaPropertiesChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveMediaPropertiesChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

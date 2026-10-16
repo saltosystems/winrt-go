@@ -61,6 +61,8 @@ hr, _, _ := syscall.SyscallN(
             {{end -}}
         {{else if .Type.IsGeneric -}}
             uintptr({{.GoVarName}}),   // in {{.GoTypeName}}
+        {{else if .Type.ByValueType -}}
+            uintptr(*(*{{.Type.ByValueType}})(unsafe.Pointer(&{{.GoVarName}}))),   // in {{.GoTypeName}}
         {{else -}}
             uintptr(unsafe.Pointer(&{{.GoVarName}})),   // in {{.GoTypeName}}
         {{end -}}

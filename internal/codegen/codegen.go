@@ -466,6 +466,69 @@ func (g *generator) createGenEnum(typeDef *winmd.TypeDef) (*genEnum, error) {
 }
 
 // https://docs.microsoft.com/en-us/uwp/winrt-cref/winmd-files#structs
+// goTypeSizes gives the width in bytes of the Go types the generator emits for
+// fundamental WinRT types.
+var goTypeSizes = map[string]int{
+	"bool": 1, "byte": 1, "int8": 1, "uint8": 1,
+	"int16": 2, "uint16": 2,
+	"int32": 4, "uint32": 4, "float32": 4,
+	"int64": 8, "uint64": 8, "float64": 8,
+}
+
+// structByValueType reports the unsigned integer type a struct should be loaded
+// through in order to be passed in a register, or "" if it must be passed by
+// reference.
+//
+// Both the x64 and the AArch64 calling conventions put an aggregate of eight
+// bytes or fewer in a single register, and pass anything larger than sixteen by
+// reference. Sizes in between differ between the two, so only the small case is
+// claimed here; everything else keeps its address taken.
+//
+// Only sizes of exactly 1, 2, 4 or 8 are accepted. Any other total means the
+// fields do not pack without padding, and the sum would not describe the real
+// layout.
+func (g *generator) structByValueType(typeDef *winmd.TypeDef) string {
+	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
+	if err != nil {
+		return ""
+	}
+
+	size := 0
+	for _, f := range fields {
+		fSig, err := f.Signature.Reader().Field(typeDef.Ctx())
+		if err != nil {
+			return ""
+		}
+		fieldType, err := g.elementType(typeDef.Ctx(), fSig.Field)
+		if err != nil {
+			return ""
+		}
+
+		name := fieldType.name
+		if fieldType.IsEnum {
+			name = fieldType.UnderlyingEnumType
+		}
+		fieldSize, ok := goTypeSizes[name]
+		if !ok {
+			return "" // nested struct, string or pointer: do not guess
+		}
+		size += fieldSize
+	}
+
+	switch size {
+	case 1:
+		return "uint8"
+	case 2:
+		return "uint16"
+	case 4:
+		return "uint32"
+	case 8:
+		return "uint64"
+	default:
+		return ""
+	}
+}
+
 func (g *generator) createGenStruct(typeDef *winmd.TypeDef) (*genStruct, error) {
 	// structs do not have methods, only fields
 	fields, err := typeDef.ResolveFieldList(typeDef.Ctx())
@@ -967,6 +1030,14 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 			isEnum = true
 			enumType = enumData.Type
 		}
+		// A struct small enough to travel in a register must be passed by
+		// value; taking its address would hand the callee a pointer where it
+		// expects the value itself.
+		byValueType := ""
+		if !isEnum {
+			byValueType = g.structByValueType(elementTypeDef)
+		}
+
 		return &genParamType{
 			namespace:          namespace,
 			name:               name,
@@ -975,6 +1046,7 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 			IsArray:            false,
 			IsEnum:             isEnum,
 			UnderlyingEnumType: enumType,
+			ByValueType:        byValueType,
 			defaultValue:       g.elementDefaultValue(ctx, e),
 		}, nil
 	case types.ELEMENT_TYPE_VAR:

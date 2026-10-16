@@ -245,8 +245,8 @@ func (v *iGattCharacteristic) AddValueChanged(valueChangedHandler *foundation.Ty
 func (v *iGattCharacteristic) RemoveValueChanged(valueChangedEventCookie foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveValueChanged,
-		uintptr(unsafe.Pointer(v)),                        // this
-		uintptr(unsafe.Pointer(&valueChangedEventCookie)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                                    // this
+		uintptr(*(*uint64)(unsafe.Pointer(&valueChangedEventCookie))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

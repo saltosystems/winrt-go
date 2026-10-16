@@ -354,8 +354,8 @@ func (v *iGattLocalCharacteristic) AddSubscribedClientsChanged(handler *foundati
 func (v *iGattLocalCharacteristic) RemoveSubscribedClientsChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveSubscribedClientsChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -384,8 +384,8 @@ func (v *iGattLocalCharacteristic) AddReadRequested(handler *foundation.TypedEve
 func (v *iGattLocalCharacteristic) RemoveReadRequested(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveReadRequested,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -414,8 +414,8 @@ func (v *iGattLocalCharacteristic) AddWriteRequested(handler *foundation.TypedEv
 func (v *iGattLocalCharacteristic) RemoveWriteRequested(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveWriteRequested,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

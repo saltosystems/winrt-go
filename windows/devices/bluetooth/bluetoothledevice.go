@@ -187,8 +187,8 @@ func (v *iBluetoothLEDevice) AddConnectionStatusChanged(handler *foundation.Type
 func (v *iBluetoothLEDevice) RemoveConnectionStatusChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveConnectionStatusChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -422,8 +422,8 @@ func (v *iBluetoothLEDevice6) AddConnectionParametersChanged(handler *foundation
 func (v *iBluetoothLEDevice6) RemoveConnectionParametersChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveConnectionParametersChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
@@ -452,8 +452,8 @@ func (v *iBluetoothLEDevice6) AddConnectionPhyChanged(handler *foundation.TypedE
 func (v *iBluetoothLEDevice6) RemoveConnectionPhyChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveConnectionPhyChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

@@ -153,6 +153,11 @@ type genParamType struct {
 	IsEnum             bool
 	UnderlyingEnumType string
 
+	// ByValueType is the unsigned integer type a small struct is loaded
+	// through so it can be passed in a register. Empty when the struct is
+	// passed by reference instead.
+	ByValueType string
+
 	defaultValue genDefaultValue
 }
 

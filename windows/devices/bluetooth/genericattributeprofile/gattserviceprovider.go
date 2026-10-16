@@ -140,8 +140,8 @@ func (v *iGattServiceProvider) AddAdvertisementStatusChanged(handler *foundation
 func (v *iGattServiceProvider) RemoveAdvertisementStatusChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveAdvertisementStatusChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {

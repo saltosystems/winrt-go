@@ -116,8 +116,8 @@ func (v *iGattSubscribedClient) AddMaxNotificationSizeChanged(handler *foundatio
 func (v *iGattSubscribedClient) RemoveMaxNotificationSizeChanged(token foundation.EventRegistrationToken) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().RemoveMaxNotificationSizeChanged,
-		uintptr(unsafe.Pointer(v)),      // this
-		uintptr(unsafe.Pointer(&token)), // in foundation.EventRegistrationToken
+		uintptr(unsafe.Pointer(v)),                  // this
+		uintptr(*(*uint64)(unsafe.Pointer(&token))), // in foundation.EventRegistrationToken
 	)
 
 	if hr != 0 {
