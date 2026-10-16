@@ -20,6 +20,13 @@ var (
 	invokeCallback         = syscall.NewCallback(invoke)
 )
 
+// iidIAgileObject is IID_IAgileObject.
+//
+// It is a marker interface with no methods of its own: an object claims it to
+// say it has no apartment affinity and may be called from any of them without
+// marshalling.
+var iidIAgileObject = ole.NewGUID("{94ea2b94-e9cc-49e0-c0ff-ee64ca8f5b90}")
+
 // Delegate represents a WinRT delegate class.
 type Delegate interface {
 	GetIID() *ole.GUID
@@ -87,7 +94,13 @@ func queryInterface(instancePtr unsafe.Pointer, iidPtr unsafe.Pointer, ppvObject
 
 	// This function must adhere to the QueryInterface defined here:
 	// https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nn-unknwn-iunknown
-	if iid := (*ole.GUID)(iidPtr); ole.IsEqualGUID(iid, instance.GetIID()) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) {
+	// IAgileObject is answered because these delegates really are agile: the
+	// vtable is a fixed set of Go callbacks with no apartment affinity, so
+	// holding one from another apartment needs no marshalling. Without it, any
+	// API that requires an agile callback rejects the delegate with
+	// E_NOTAGILE (0x8000001C) - DispatcherQueue.TryEnqueue, for one, which is
+	// how work gets back onto a UI thread.
+	if iid := (*ole.GUID)(iidPtr); ole.IsEqualGUID(iid, instance.GetIID()) || ole.IsEqualGUID(iid, ole.IID_IUnknown) || ole.IsEqualGUID(iid, ole.IID_IInspectable) || ole.IsEqualGUID(iid, iidIAgileObject) {
 		*ppvObject = instancePtr
 	} else {
 		*ppvObject = nil
