@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go/windows/devices/enumeration"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
@@ -38,6 +39,13 @@ func (impl *BluetoothLEDevice) RemoveConnectionStatusChanged(token foundation.Ev
 	defer itf.Release()
 	v := (*iBluetoothLEDevice)(unsafe.Pointer(itf))
 	return v.RemoveConnectionStatusChanged(token)
+}
+
+func (impl *BluetoothLEDevice) GetDeviceInformation() (*enumeration.DeviceInformation, error) {
+	itf := impl.MustQueryInterface(ole.NewGUID(GUIDiBluetoothLEDevice2))
+	defer itf.Release()
+	v := (*iBluetoothLEDevice2)(unsafe.Pointer(itf))
+	return v.GetDeviceInformation()
 }
 
 func (impl *BluetoothLEDevice) GetGattServicesAsync() (*foundation.IAsyncOperation, error) {
@@ -207,6 +215,21 @@ type iBluetoothLEDevice2Vtbl struct {
 
 func (v *iBluetoothLEDevice2) VTable() *iBluetoothLEDevice2Vtbl {
 	return (*iBluetoothLEDevice2Vtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *iBluetoothLEDevice2) GetDeviceInformation() (*enumeration.DeviceInformation, error) {
+	var out *enumeration.DeviceInformation
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetDeviceInformation,
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(unsafe.Pointer(&out)), // out enumeration.DeviceInformation
+	)
+
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+
+	return out, nil
 }
 
 const GUIDiBluetoothLEDevice3 string = "aee9e493-44ac-40dc-af33-b2c13c01ca46"
