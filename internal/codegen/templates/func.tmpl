@@ -1,13 +1,20 @@
 {{if .Implement}}
+    {{with callerAllocatedOuts .InParams -}}
+    {{range . -}}
+    // {{funcName $}} writes to the memory {{.GoVarName}} points to. The caller provides it, with room
+    // for {{if .IsCallerAllocatedArray}}{{.GoVarName}}Size values{{else}}a value{{end}} of the type argument.
+    {{end -}}
+    // For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+    {{end -}}
     func {{if and .FuncOwner (not .RequiresActivation)}}
         (v *{{.FuncOwner}})
     {{- end -}}
 
-    {{funcName .}} 
-    
+    {{funcName .}}
+
     {{- /* in params */ -}}
 
-    ( 
+    (
     {{- range .InParams -}}
         {{/*do not include out parameters, they are used as return values*/ -}}
         {{ if .IsOut }}{{continue}}{{ end -}}

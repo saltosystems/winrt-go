@@ -40,20 +40,22 @@ func (v *IVector) VTable() *IVectorVtbl {
 	return (*IVectorVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func (v *IVector) GetAt(index uint32) (unsafe.Pointer, error) {
-	var out unsafe.Pointer
+// GetAt writes to the memory out points to. The caller provides it, with room
+// for a value of the type argument.
+// For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+func (v *IVector) GetAt(index uint32, out unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetAt,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(index),                // in uint32
-		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(index),             // in uint32
+		uintptr(out),               // out unsafe.Pointer
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return ole.NewError(hr)
 	}
 
-	return out, nil
+	return nil
 }
 
 func (v *IVector) GetSize() (uint32, error) {
@@ -188,23 +190,25 @@ func (v *IVector) Clear() error {
 	return nil
 }
 
-func (v *IVector) GetMany(startIndex uint32, itemsSize uint32) ([]unsafe.Pointer, uint32, error) {
-	var items []unsafe.Pointer = make([]unsafe.Pointer, itemsSize)
+// GetMany writes to the memory items points to. The caller provides it, with room
+// for itemsSize values of the type argument.
+// For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+func (v *IVector) GetMany(startIndex uint32, itemsSize uint32, items unsafe.Pointer) (uint32, error) {
 	var out uint32
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetMany,
-		uintptr(unsafe.Pointer(v)),         // this
-		uintptr(startIndex),                // in uint32
-		uintptr(itemsSize),                 // in uint32
-		uintptr(unsafe.Pointer(&items[0])), // out unsafe.Pointer
-		uintptr(unsafe.Pointer(&out)),      // out uint32
+		uintptr(unsafe.Pointer(v)),    // this
+		uintptr(startIndex),           // in uint32
+		uintptr(itemsSize),            // in uint32
+		uintptr(items),                // out unsafe.Pointer
+		uintptr(unsafe.Pointer(&out)), // out uint32
 	)
 
 	if hr != 0 {
-		return nil, 0, ole.NewError(hr)
+		return 0, ole.NewError(hr)
 	}
 
-	return items, out, nil
+	return out, nil
 }
 
 func (v *IVector) ReplaceAll(itemsSize uint32, items []unsafe.Pointer) error {

@@ -668,6 +668,8 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		}
 	}
 
+	params, retParams = callerAllocatedGenericOuts(params, retParams)
+
 	return &genFunc{
 		Name:               overloadName,
 		RequiresImports:    requiredImports,
@@ -678,6 +680,51 @@ func (g *generator) genFuncFromMethod(typeDef *winmd.TypeDef, methodDef *types.M
 		ExclusiveTo:        exclusiveTo,
 		RequiresActivation: requiresActivation,
 	}, nil
+}
+
+// callerAllocatedGenericOuts turns every generic out parameter into an in parameter
+// that points to memory provided by the caller.
+//
+// Generic types are passed around as an unsafe.Pointer, so a generic out parameter
+// would only have room for a pointer. That is fine when the generic type is an
+// interface or a class, but a value type such as a GUID is bigger than a pointer and
+// the callee would write past it. The caller knows the actual type, so it provides
+// the memory.
+func callerAllocatedGenericOuts(params, retParams []*genParam) ([]*genParam, []*genParam) {
+	isGenericOut := func(p *genParam) bool { return p.IsOut && p.Type.IsGeneric }
+
+	// the generic out parameter becomes an unsafe.Pointer that is passed as is
+	toPointer := func(p *genParam) *genParam {
+		t := *p.Type
+		t.IsArray = false
+		return &genParam{
+			callerPackage:          p.callerPackage,
+			varName:                p.varName,
+			Type:                   &t,
+			IsOut:                  false,
+			IsCallerAllocatedOut:   true,
+			IsCallerAllocatedArray: p.Type.IsArray,
+		}
+	}
+
+	var newParams, newRetParams []*genParam
+	for _, p := range params {
+		if isGenericOut(p) {
+			p = toPointer(p)
+		}
+		newParams = append(newParams, p)
+	}
+	// the return value is the last parameter of the call, so it can be moved to the
+	// end of the in parameters without changing the order of the call arguments
+	for _, p := range retParams {
+		if isGenericOut(p) {
+			newParams = append(newParams, toPointer(p))
+		} else {
+			newRetParams = append(newRetParams, p)
+		}
+	}
+
+	return newParams, newRetParams
 }
 
 func (g *generator) shouldImplementMethod(methodName string) bool {

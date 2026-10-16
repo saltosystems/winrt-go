@@ -29,17 +29,19 @@ func (v *IReference) VTable() *IReferenceVtbl {
 	return (*IReferenceVtbl)(unsafe.Pointer(v.RawVTable))
 }
 
-func (v *IReference) GetValue() (unsafe.Pointer, error) {
-	var out unsafe.Pointer
+// GetValue writes to the memory out points to. The caller provides it, with room
+// for a value of the type argument.
+// For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+func (v *IReference) GetValue(out unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetValue,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(out),               // out unsafe.Pointer
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return ole.NewError(hr)
 	}
 
-	return out, nil
+	return nil
 }

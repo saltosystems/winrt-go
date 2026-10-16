@@ -60,17 +60,19 @@ func (v *IAsyncOperation) GetCompleted() (*AsyncOperationCompletedHandler, error
 	return out, nil
 }
 
-func (v *IAsyncOperation) GetResults() (unsafe.Pointer, error) {
-	var out unsafe.Pointer
+// GetResults writes to the memory out points to. The caller provides it, with room
+// for a value of the type argument.
+// For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+func (v *IAsyncOperation) GetResults(out unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetResults,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
+		uintptr(unsafe.Pointer(v)), // this
+		uintptr(out),               // out unsafe.Pointer
 	)
 
 	if hr != 0 {
-		return nil, ole.NewError(hr)
+		return ole.NewError(hr)
 	}
 
-	return out, nil
+	return nil
 }

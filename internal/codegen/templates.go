@@ -166,6 +166,11 @@ type genParam struct {
 	Type *genParamType
 
 	IsOut bool
+	// IsCallerAllocatedOut is set on a generic out parameter that the caller passes
+	// as a pointer to its own memory, so it is an in parameter of the Go function.
+	IsCallerAllocatedOut bool
+	// IsCallerAllocatedArray is set when that memory holds an array of values.
+	IsCallerAllocatedArray bool
 }
 
 func (g *genParam) GoVarName() string {
@@ -218,6 +223,15 @@ func getTemplates() (*template.Template, error) {
 func funcs() template.FuncMap {
 	return template.FuncMap{
 		"funcName": funcName,
+		"callerAllocatedOuts": func(params []*genParam) []*genParam {
+			var outs []*genParam
+			for _, p := range params {
+				if p.IsCallerAllocatedOut {
+					outs = append(outs, p)
+				}
+			}
+			return outs
+		},
 		"concat": func(a, b []*genParam) []*genParam {
 			return append(a, b...)
 		},
