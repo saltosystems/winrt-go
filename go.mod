@@ -8,12 +8,12 @@ require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/peterbourgon/ff/v3 v3.1.2
 	github.com/stretchr/testify v1.7.5
-	github.com/tdakkota/win32metadata v0.1.0
 	golang.org/x/sys v0.0.0-20220624220833-87e55d714810
 	golang.org/x/tools v0.1.11
 )
 
 require (
+	github.com/TotallyGamerJet/win32metadata v0.1.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

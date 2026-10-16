@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/tdakkota/win32metadata/md"
-	"github.com/tdakkota/win32metadata/types"
+	"github.com/TotallyGamerJet/win32metadata/md"
+	"github.com/TotallyGamerJet/win32metadata/types"
 )
 
 // TypeDef is a helper struct that wraps types.TypeDef and stores the original context

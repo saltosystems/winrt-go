@@ -12,7 +12,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/internal/winmd"
-	"github.com/tdakkota/win32metadata/types"
+	"github.com/TotallyGamerJet/win32metadata/types"
 	"golang.org/x/tools/imports"
 )
 

@@ -1,8 +1,8 @@
 package winmd
 
 import (
-	"github.com/tdakkota/win32metadata/md"
-	"github.com/tdakkota/win32metadata/types"
+	"github.com/TotallyGamerJet/win32metadata/md"
+	"github.com/TotallyGamerJet/win32metadata/types"
 )
 
 // GetMethodOverloadName finds and returns the overload attribute for the given method

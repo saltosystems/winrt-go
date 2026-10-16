@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/go-kit/log"
-	"github.com/tdakkota/win32metadata/md"
-	"github.com/tdakkota/win32metadata/types"
+	"github.com/TotallyGamerJet/win32metadata/md"
+	"github.com/TotallyGamerJet/win32metadata/types"
 )
 
 // ClassNotFoundError is returned when a class is not found.

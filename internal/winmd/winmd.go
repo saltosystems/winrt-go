@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 
-	"github.com/tdakkota/win32metadata/types"
+	"github.com/TotallyGamerJet/win32metadata/types"
 )
 
 // Custom Attributes
