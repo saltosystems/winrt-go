@@ -774,6 +774,24 @@ func (g *generator) getReturnParameters(curPackage string, typeDef *winmd.TypeDe
 		return nil, err
 	}
 
+	// When the return type is an array, the array length parameter must also be added as an out
+	// parameter, similar to how it's done for in parameters in getInParameters.
+	if methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_SZARRAY || methodSignature.Return.Type.Kind == types.ELEMENT_TYPE_ARRAY {
+		genParams = append(genParams, &genParam{
+			callerPackage: curPackage,
+			varName:       "outSize",
+			IsOut:         true,
+			Type: &genParamType{
+				namespace:    "",
+				name:         "uint32",
+				defaultValue: genDefaultValue{"0", true},
+				IsPrimitive:  true,
+				IsPointer:    false,
+				IsArray:      false,
+			},
+		})
+	}
+
 	genParams = append(genParams, &genParam{
 		// return param always has an index of zero
 		callerPackage: curPackage,
