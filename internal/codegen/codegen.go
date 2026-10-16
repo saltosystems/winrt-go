@@ -1004,10 +1004,15 @@ func (g *generator) elementType(ctx *types.Context, e types.Element) (*genParamT
 
 		return param, err
 	case types.ELEMENT_TYPE_OBJECT:
-		// This represents System.Object, so just use a pointer
+		// This represents System.Object, so just use a pointer.
+		//
+		// IsGeneric marks it as already being a pointer, so that it is passed
+		// straight through rather than having its address taken, the same way
+		// ELEMENT_TYPE_VAR is handled above.
 		return &genParamType{
 			namespace:    "unsafe",
 			name:         "Pointer",
+			IsGeneric:    true,
 			IsPointer:    false,
 			IsPrimitive:  false,
 			IsArray:      false,
