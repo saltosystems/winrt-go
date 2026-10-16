@@ -42,24 +42,24 @@ func guidVector(guids []syscall.GUID) *collections.IVector {
 	return v
 }
 
-func TestIVectorGetAtIntoValueType(t *testing.T) {
+func TestIVectorGetAtValueType(t *testing.T) {
 	v := guidVector(testGUIDs)
 
 	for i, want := range testGUIDs {
 		var got syscall.GUID
-		require.NoError(t, v.GetAtInto(uint32(i), unsafe.Pointer(&got)))
+		require.NoError(t, v.GetAt(uint32(i), unsafe.Pointer(&got)))
 		assert.Equal(t, want, got)
 	}
 
 	var got syscall.GUID
-	assert.Error(t, v.GetAtInto(uint32(len(testGUIDs)), unsafe.Pointer(&got)))
+	assert.Error(t, v.GetAt(uint32(len(testGUIDs)), unsafe.Pointer(&got)))
 }
 
-func TestIVectorGetManyIntoValueType(t *testing.T) {
+func TestIVectorGetManyValueType(t *testing.T) {
 	v := guidVector(testGUIDs)
 
 	got := make([]syscall.GUID, 2)
-	n, err := v.GetManyInto(1, uint32(len(got)), unsafe.Pointer(&got[0]))
+	n, err := v.GetMany(1, uint32(len(got)), unsafe.Pointer(&got[0]))
 	require.NoError(t, err)
 	assert.Equal(t, uint32(2), n)
 	assert.Equal(t, testGUIDs[1:], got)

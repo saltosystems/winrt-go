@@ -60,26 +60,10 @@ func (v *IAsyncOperation) GetCompleted() (*AsyncOperationCompletedHandler, error
 	return out, nil
 }
 
-func (v *IAsyncOperation) GetResults() (unsafe.Pointer, error) {
-	var out unsafe.Pointer
-	hr, _, _ := syscall.SyscallN(
-		v.VTable().GetResults,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(unsafe.Pointer(&out)), // out unsafe.Pointer
-	)
-
-	if hr != 0 {
-		return nil, ole.NewError(hr)
-	}
-
-	return out, nil
-}
-
-// GetResultsInto is GetResults for generic types that do not fit in an unsafe.Pointer,
-// such as a GUID. It writes each generic result to the memory its unsafe.Pointer
-// parameter points to, which must have room for the result (for an array, for
-// every element).
-func (v *IAsyncOperation) GetResultsInto(out unsafe.Pointer) error {
+// GetResults writes to the memory out points to. The caller provides it, with room
+// for a value of the type argument.
+// For example, a syscall.GUID for GUID, or an unsafe.Pointer for an interface or a class.
+func (v *IAsyncOperation) GetResults(out unsafe.Pointer) error {
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GetResults,
 		uintptr(unsafe.Pointer(v)), // this
