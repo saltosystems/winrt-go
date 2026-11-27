@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
@@ -260,10 +261,12 @@ func (v *iGattLocalCharacteristic) CreateDescriptorAsync(descriptorUuid syscall.
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().CreateDescriptorAsync,
-		uintptr(unsafe.Pointer(v)),               // this
-		uintptr(unsafe.Pointer(&descriptorUuid)), // in syscall.GUID
-		uintptr(unsafe.Pointer(parameters)),      // in GattLocalDescriptorParameters
-		uintptr(unsafe.Pointer(&out)),            // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),          // this
+			winrt.GUIDArg(&descriptorUuid),      // in syscall.GUID
+			uintptr(unsafe.Pointer(parameters)), // in GattLocalDescriptorParameters
+			uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {

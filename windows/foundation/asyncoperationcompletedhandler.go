@@ -49,7 +49,7 @@ func NewAsyncOperationCompletedHandler(iid *ole.GUID, callback AsyncOperationCom
 	inst := (*AsyncOperationCompletedHandler)(instPtr)
 
 	// get the callbacks for the VTable
-	callbacks := delegate.RegisterCallbacks(instPtr, inst)
+	callbacks := delegate.RegisterCallbacks(instPtr, inst, 2)
 
 	// the VTable should also be allocated in the heap
 	sizeVTable := unsafe.Sizeof(*(*AsyncOperationCompletedHandlerVtbl)(nil))

@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/devices/enumeration"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
@@ -496,10 +497,12 @@ func BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync(bluetoot
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BluetoothLEDeviceFromBluetoothAddressWithBluetoothAddressTypeAsync,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(bluetoothAddress),     // in uint64
-		uintptr(bluetoothAddressType), // in BluetoothAddressType
-		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),        // this
+			winrt.Uint64Arg(bluetoothAddress), // in uint64
+			uintptr(bluetoothAddressType),     // in BluetoothAddressType
+			uintptr(unsafe.Pointer(&out)),     // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {
@@ -538,9 +541,11 @@ func BluetoothLEDeviceFromBluetoothAddressAsync(bluetoothAddress uint64) (*found
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().BluetoothLEDeviceFromBluetoothAddressAsync,
-		uintptr(unsafe.Pointer(v)),    // this
-		uintptr(bluetoothAddress),     // in uint64
-		uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),        // this
+			winrt.Uint64Arg(bluetoothAddress), // in uint64
+			uintptr(unsafe.Pointer(&out)),     // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {

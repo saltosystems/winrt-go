@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 	"github.com/saltosystems/winrt-go/windows/media"
 )
@@ -515,9 +516,11 @@ func (v *iGlobalSystemMediaTransportControlsSession) TryChangePlaybackPositionAs
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().TryChangePlaybackPositionAsync,
-		uintptr(unsafe.Pointer(v)),         // this
-		uintptr(requestedPlaybackPosition), // in int64
-		uintptr(unsafe.Pointer(&out)),      // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),                // this
+			winrt.Int64Arg(requestedPlaybackPosition), // in int64
+			uintptr(unsafe.Pointer(&out)),             // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {

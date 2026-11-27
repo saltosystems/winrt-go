@@ -224,7 +224,44 @@ func funcs() template.FuncMap {
 		"toLower": func(s string) string {
 			return strings.ToLower(s[:1]) + s[1:]
 		},
+		"isWide":         isWide,
+		"wideArgFunc":    wideArgFunc,
+		"hasWideInParam": hasWideInParam,
 	}
+}
+
+// wideArgFuncs maps the types passed by value that don't fit in one 32-bit
+// stack word to the winrt function that lays them out for the target
+// architecture.
+var wideArgFuncs = map[string]string{
+	"int64":        "Int64Arg",
+	"uint64":       "Uint64Arg",
+	"syscall.GUID": "GUIDArg",
+}
+
+// isWide says whether p is an input parameter passed by value that takes
+// more than one word on 386.
+func isWide(p *genParam) bool {
+	if p.IsOut || p.Type.IsArray || p.Type.IsPointer {
+		return false
+	}
+	_, ok := wideArgFuncs[p.GoTypeName()]
+	return ok
+}
+
+// wideArgFunc is the winrt function that lays out the wide parameter p.
+func wideArgFunc(p *genParam) string {
+	return wideArgFuncs[p.GoTypeName()]
+}
+
+// hasWideInParam says whether any parameter of m is wide (see isWide).
+func hasWideInParam(m genFunc) bool {
+	for _, p := range m.InParams {
+		if isWide(p) {
+			return true
+		}
+	}
+	return false
 }
 
 // funcName is used to generate the name of a function.
