@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 )
@@ -79,10 +80,12 @@ func (v *iGattLocalService) CreateCharacteristicAsync(characteristicUuid syscall
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().CreateCharacteristicAsync,
-		uintptr(unsafe.Pointer(v)),                   // this
-		uintptr(unsafe.Pointer(&characteristicUuid)), // in syscall.GUID
-		uintptr(unsafe.Pointer(parameters)),          // in GattLocalCharacteristicParameters
-		uintptr(unsafe.Pointer(&out)),                // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),          // this
+			winrt.GUIDArg(&characteristicUuid),  // in syscall.GUID
+			uintptr(unsafe.Pointer(parameters)), // in GattLocalCharacteristicParameters
+			uintptr(unsafe.Pointer(&out)),       // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {

@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
@@ -218,9 +219,11 @@ func GattServiceProviderCreateAsync(serviceUuid syscall.GUID) (*foundation.IAsyn
 	var out *foundation.IAsyncOperation
 	hr, _, _ := syscall.SyscallN(
 		v.VTable().GattServiceProviderCreateAsync,
-		uintptr(unsafe.Pointer(v)),            // this
-		uintptr(unsafe.Pointer(&serviceUuid)), // in syscall.GUID
-		uintptr(unsafe.Pointer(&out)),         // out foundation.IAsyncOperation
+		winrt.CallArgs(
+			uintptr(unsafe.Pointer(v)),    // this
+			winrt.GUIDArg(&serviceUuid),   // in syscall.GUID
+			uintptr(unsafe.Pointer(&out)), // out foundation.IAsyncOperation
+		)...,
 	)
 
 	if hr != 0 {

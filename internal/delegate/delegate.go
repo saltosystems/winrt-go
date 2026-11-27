@@ -17,8 +17,30 @@ var (
 	queryInterfaceCallback = syscall.NewCallback(queryInterface)
 	addRefCallback         = syscall.NewCallback(addRef)
 	releaseCallback        = syscall.NewCallback(release)
-	invokeCallback         = syscall.NewCallback(invoke)
 )
+
+// invokeCallbacks holds one Invoke callback per parameter count, indexed by
+// it. On 32-bit Windows COM uses stdcall, where the callee pops its own
+// arguments, so the callback must declare exactly the parameters WinRT pushes:
+// one declaring more corrupts the caller's stack on return.
+var invokeCallbacks = [...]uintptr{
+	syscall.NewCallback(func(i unsafe.Pointer) uintptr { return invoke(i) }),
+	syscall.NewCallback(func(i, a0 unsafe.Pointer) uintptr { return invoke(i, a0) }),
+	syscall.NewCallback(func(i, a0, a1 unsafe.Pointer) uintptr { return invoke(i, a0, a1) }),
+	syscall.NewCallback(func(i, a0, a1, a2 unsafe.Pointer) uintptr { return invoke(i, a0, a1, a2) }),
+	syscall.NewCallback(func(i, a0, a1, a2, a3 unsafe.Pointer) uintptr { return invoke(i, a0, a1, a2, a3) }),
+	syscall.NewCallback(func(i, a0, a1, a2, a3, a4 unsafe.Pointer) uintptr { return invoke(i, a0, a1, a2, a3, a4) }),
+	syscall.NewCallback(func(i, a0, a1, a2, a3, a4, a5 unsafe.Pointer) uintptr { return invoke(i, a0, a1, a2, a3, a4, a5) }),
+	syscall.NewCallback(func(i, a0, a1, a2, a3, a4, a5, a6 unsafe.Pointer) uintptr {
+		return invoke(i, a0, a1, a2, a3, a4, a5, a6)
+	}),
+	syscall.NewCallback(func(i, a0, a1, a2, a3, a4, a5, a6, a7 unsafe.Pointer) uintptr {
+		return invoke(i, a0, a1, a2, a3, a4, a5, a6, a7)
+	}),
+	syscall.NewCallback(func(i, a0, a1, a2, a3, a4, a5, a6, a7, a8 unsafe.Pointer) uintptr {
+		return invoke(i, a0, a1, a2, a3, a4, a5, a6, a7, a8)
+	}),
+}
 
 // Delegate represents a WinRT delegate class.
 type Delegate interface {
@@ -42,7 +64,8 @@ var instances = make(map[uintptr]Delegate)
 // RegisterCallbacks adds the given pointer and the Delegate it points to to our instances.
 // This is required to redirect received callbacks to the correct object instance.
 // The function returns the callbacks to use when creating a new delegate instance.
-func RegisterCallbacks(ptr unsafe.Pointer, inst Delegate) *Callbacks {
+// argCount is the number of parameters the delegate's Invoke method takes.
+func RegisterCallbacks(ptr unsafe.Pointer, inst Delegate, argCount int) *Callbacks {
 	mutex.Lock()
 	defer mutex.Unlock()
 	instances[uintptr(ptr)] = inst
@@ -51,7 +74,7 @@ func RegisterCallbacks(ptr unsafe.Pointer, inst Delegate) *Callbacks {
 		QueryInterface: queryInterfaceCallback,
 		AddRef:         addRefCallback,
 		Release:        releaseCallback,
-		Invoke:         invokeCallback,
+		Invoke:         invokeCallbacks[argCount],
 	}
 }
 
@@ -103,14 +126,16 @@ func queryInterface(instancePtr unsafe.Pointer, iidPtr unsafe.Pointer, ppvObject
 	return ole.S_OK
 }
 
-func invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8 unsafe.Pointer) uintptr {
+func invoke(instancePtr unsafe.Pointer, rawArgs ...unsafe.Pointer) uintptr {
 	instance, ok := getInstance(instancePtr)
 	if !ok {
 		// instance not found
 		return ole.E_FAIL
 	}
 
-	return instance.Invoke(instancePtr, rawArgs0, rawArgs1, rawArgs2, rawArgs3, rawArgs4, rawArgs5, rawArgs6, rawArgs7, rawArgs8)
+	var a [9]unsafe.Pointer
+	copy(a[:], rawArgs)
+	return instance.Invoke(instancePtr, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
 }
 
 func addRef(instancePtr unsafe.Pointer) uintptr {
